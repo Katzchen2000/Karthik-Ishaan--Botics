@@ -1,0 +1,3305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>FRC Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #07101e;
+      --surf: #0f1d2e;
+      --surf2: #162438;
+      --surf3: #1c2d42;
+      --bdr: #1e3a5f;
+      --bdr2: #244a70;
+      --acc: #00d4aa;
+      --acc2: #0ea5e9;
+      --acc3: #6366f1;
+      --txt: #e2e8f0;
+      --dim: #94a3b8;
+      --mut: #64748b;
+      --grn: #10b981;
+      --yel: #f59e0b;
+      --red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--txt);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* NAV */
+    nav {
+      background: var(--surf);
+      border-bottom: 1px solid var(--bdr);
+      height: 50px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 2px;
+      position: sticky;
+      top: 0;
+      z-index: 300;
+    }
+
+    .logo {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--acc);
+      cursor: pointer;
+      margin-right: 8px;
+    }
+
+    .logo span {
+      color: var(--txt);
+    }
+
+    .ntab {
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--mut);
+      border: none;
+      background: none;
+      transition: all .15s;
+    }
+
+    .ntab:hover {
+      color: var(--txt);
+      background: var(--surf2);
+    }
+
+    .ntab.on {
+      color: var(--acc);
+      background: rgba(0, 212, 170, .1);
+    }
+
+    .nright {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bsm {
+      background: var(--surf2);
+      border: 1px solid var(--bdr);
+      color: var(--dim);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+
+    .bsm:hover {
+      border-color: var(--acc);
+      color: var(--acc);
+    }
+
+    .bsm.ok {
+      border-color: var(--grn);
+      color: var(--grn);
+    }
+
+    /* PAGES */
+    .page {
+      display: none;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 20px 16px;
+    }
+
+    .page.on {
+      display: block;
+    }
+
+    /* MODAL */
+    .mbk {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .75);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mbk.on {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--surf);
+      border: 1px solid var(--bdr2);
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .modal h2 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .modal p {
+      font-size: 12px;
+      color: var(--dim);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .mlbl {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--mut);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 4px;
+    }
+
+    .minp {
+      width: 100%;
+      background: var(--surf2);
+      border: 1px solid var(--bdr2);
+      color: var(--txt);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 10px;
+      outline: none;
+    }
+
+    .minp:focus {
+      border-color: var(--acc);
+    }
+
+    .mrow {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .bprim {
+      background: var(--acc);
+      color: #07101e;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .bsec {
+      background: var(--surf2);
+      border: 1px solid var(--bdr);
+      color: var(--dim);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .errmsg {
+      color: var(--red);
+      font-size: 11px;
+      margin-bottom: 8px;
+      display: none;
+    }
+
+    /* LANDING */
+    #pgLanding {
+      text-align: center;
+      padding: 60px 16px;
+    }
+
+    #pgLanding h1 {
+      font-size: 34px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    #pgLanding h1 span {
+      color: var(--acc);
+    }
+
+    #pgLanding p {
+      color: var(--dim);
+      margin-bottom: 24px;
+    }
+
+    .dropzone {
+      border: 2px dashed var(--bdr2);
+      border-radius: 12px;
+      padding: 36px;
+      max-width: 440px;
+      margin: 0 auto;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .dropzone:hover,
+    .dropzone.over {
+      border-color: var(--acc);
+      background: rgba(0, 212, 170, .03);
+    }
+
+    /* SHARED */
+    .phdr {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .phdr h2 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .badge {
+      background: var(--surf2);
+      border: 1px solid var(--bdr);
+      color: var(--mut);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 99px;
+    }
+
+    .sbox {
+      background: var(--surf2);
+      border: 1px solid var(--bdr);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--txt);
+      font-size: 13px;
+      width: 200px;
+      outline: none;
+      margin-left: auto;
+    }
+
+    .sbox:focus {
+      border-color: var(--acc);
+    }
+
+    .sbar {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .sbar>span {
+      font-size: 10px;
+      color: var(--mut);
+    }
+
+    .sbtn {
+      background: var(--surf2);
+      border: 1px solid var(--bdr);
+      color: var(--mut);
+      padding: 3px 9px;
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .sbtn.on {
+      border-color: var(--acc);
+      color: var(--acc);
+      background: rgba(0, 212, 170, .08);
+    }
+
+    /* DATA TABLE */
+    .dtbl {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .dtbl th {
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--mut);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--bdr);
+      white-space: nowrap;
+    }
+
+    .dtbl td {
+      padding: 9px 10px;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(30, 58, 95, .3);
+      vertical-align: middle;
+    }
+
+    .dtbl tr.cl:hover td {
+      background: var(--surf2);
+      cursor: pointer;
+    }
+
+    .tnum {
+      font-weight: 700;
+      color: var(--acc);
+      font-size: 14px;
+    }
+
+    .sv {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sv.hi {
+      color: var(--grn);
+    }
+
+    .sv.md {
+      color: var(--yel);
+    }
+
+    .sv.lo {
+      color: var(--mut);
+    }
+
+    /* PILLS */
+    .pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .pvg {
+      background: rgba(16, 185, 129, .15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, .3);
+    }
+
+    .pg {
+      background: rgba(14, 165, 233, .15);
+      color: #0ea5e9;
+      border: 1px solid rgba(14, 165, 233, .3);
+    }
+
+    .pd {
+      background: rgba(245, 158, 11, .15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, .3);
+    }
+
+    .pb {
+      background: rgba(239, 68, 68, .15);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, .3);
+    }
+
+    .pna {
+      background: rgba(100, 116, 139, .1);
+      color: var(--mut);
+      border: 1px solid rgba(100, 116, 139, .2);
+    }
+
+    /* ROLE TAGS */
+    .rt {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      margin: 1px;
+    }
+
+    .rCycler {
+      background: rgba(99, 102, 241, .15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, .3);
+    }
+
+    .rScorer {
+      background: rgba(14, 165, 233, .15);
+      color: #38bdf8;
+      border: 1px solid rgba(14, 165, 233, .3);
+    }
+
+    .rFeeder {
+      background: rgba(245, 158, 11, .15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, .3);
+    }
+
+    .rDefender {
+      background: rgba(239, 68, 68, .15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, .3);
+    }
+
+    .rLobber {
+      background: rgba(16, 185, 129, .15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, .3);
+    }
+
+    /* CLIMB BAR */
+    .cbar {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .cbar-bg {
+      background: var(--surf3);
+      border-radius: 99px;
+      height: 5px;
+      width: 48px;
+      overflow: hidden;
+    }
+
+    .cbar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--acc);
+    }
+
+    /* DROPDOWN DETAIL */
+    .drow td {
+      padding: 0 !important;
+      border-bottom: none;
+    }
+
+    .dpanel {
+      padding: 12px 10px 16px;
+      background: var(--surf2);
+      border-bottom: 2px solid var(--acc);
+      display: none;
+    }
+
+    .dpanel.on {
+      display: block;
+    }
+
+    .dcards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .scard {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 8px;
+      padding: 11px 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .scard::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--cc, var(--acc));
+    }
+
+    .sclbl {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--mut);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 4px;
+    }
+
+    .scval {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--cc, var(--acc));
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+
+    .scsub {
+      font-size: 10px;
+      color: var(--mut);
+    }
+
+    .dgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      margin-top: 9px;
+    }
+
+    .sec {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .sttl {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 7px;
+    }
+
+    .cwrap {
+      position: relative;
+      height: 140px;
+    }
+
+    .rrow {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 4px;
+    }
+
+    .rbg {
+      flex: 1;
+      background: var(--surf3);
+      border-radius: 99px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .rfill {
+      height: 100%;
+      border-radius: 99px;
+    }
+
+    .snote {
+      background: var(--surf2);
+      border-left: 3px solid var(--bdr);
+      padding: 5px 8px;
+      border-radius: 0 5px 5px 0;
+      font-size: 11px;
+      color: var(--dim);
+      margin-bottom: 3px;
+    }
+
+    .snote.s {
+      border-left-color: var(--grn);
+    }
+
+    .snote.w {
+      border-left-color: var(--red);
+    }
+
+    /* MATCHES */
+    .mcard {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 8px;
+      margin-bottom: 7px;
+      overflow: hidden;
+    }
+
+    .mhdr {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      gap: 8px;
+      cursor: pointer;
+      flex-wrap: wrap;
+    }
+
+    .mhdr:hover {
+      background: var(--surf2);
+    }
+
+    .mnum {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--dim);
+      min-width: 58px;
+    }
+
+    .mst {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+
+    .mst-c {
+      background: rgba(16, 185, 129, .15);
+      color: var(--grn);
+      border: 1px solid rgba(16, 185, 129, .3);
+    }
+
+    .mst-u {
+      background: rgba(14, 165, 233, .1);
+      color: var(--acc2);
+      border: 1px solid rgba(14, 165, 233, .25);
+    }
+
+    .mst-p {
+      background: rgba(99, 102, 241, .1);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, .25);
+    }
+
+    .alcols {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .alblk {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+
+    .allbl {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+
+    .al-r {
+      background: rgba(239, 68, 68, .15);
+      color: #f87171;
+    }
+
+    .al-b {
+      background: rgba(59, 130, 246, .15);
+      color: #60a5fa;
+    }
+
+    .tchip {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--surf2);
+      border: 1px solid var(--bdr);
+      color: var(--dim);
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .tchip:hover {
+      border-color: var(--acc);
+      color: var(--acc);
+    }
+
+    .tchip.nd {
+      border-color: rgba(245, 158, 11, .4);
+      color: var(--yel);
+    }
+
+    .mscores {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    .msv-v {
+      font-size: 14px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .msv-v.rw {
+      color: #f87171;
+    }
+
+    .msv-v.bw {
+      color: #60a5fa;
+    }
+
+    .msv-v.pr {
+      color: var(--dim);
+    }
+
+    .msv-l {
+      font-size: 9px;
+      color: var(--mut);
+    }
+
+    .divwarn {
+      background: rgba(245, 158, 11, .1);
+      border: 1px solid rgba(245, 158, 11, .3);
+      color: var(--yel);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .mbody {
+      padding: 12px;
+      border-top: 1px solid var(--bdr);
+      display: none;
+    }
+
+    .mbody.on {
+      display: block;
+    }
+
+    .aldet {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .alsec {
+      border-radius: 7px;
+      padding: 9px;
+    }
+
+    .alsec.red {
+      background: rgba(239, 68, 68, .05);
+      border: 1px solid rgba(239, 68, 68, .2);
+    }
+
+    .alsec.blue {
+      background: rgba(59, 130, 246, .05);
+      border: 1px solid rgba(59, 130, 246, .2);
+    }
+
+    .alst {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 6px;
+    }
+
+    .alsec.red .alst {
+      color: #f87171;
+    }
+
+    .alsec.blue .alst {
+      color: #60a5fa;
+    }
+
+    .altr {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, .04);
+    }
+
+    .altr:last-child {
+      border-bottom: none;
+    }
+
+    /* CALIBRATION */
+    .calbanner {
+      background: var(--surf);
+      border: 1px solid var(--bdr2);
+      border-radius: 9px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .calscalar {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--acc);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .calq {
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .cq-good {
+      background: rgba(16, 185, 129, .15);
+      color: var(--grn);
+      border: 1px solid rgba(16, 185, 129, .3);
+    }
+
+    .cq-ok {
+      background: rgba(245, 158, 11, .15);
+      color: var(--yel);
+      border: 1px solid rgba(245, 158, 11, .3);
+    }
+
+    .cq-poor {
+      background: rgba(239, 68, 68, .15);
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, .3);
+    }
+
+    .calwrap {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .calwrap.on {
+      display: block;
+    }
+
+    .ctable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+
+    .ctable th {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--mut);
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-bottom: 1px solid var(--bdr);
+      text-align: right;
+    }
+
+    .ctable th:first-child,
+    .ctable th:nth-child(2) {
+      text-align: left;
+    }
+
+    .ctable td {
+      padding: 4px 8px;
+      border-bottom: 1px solid rgba(30, 58, 95, .2);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ctable td:first-child,
+    .ctable td:nth-child(2) {
+      text-align: left;
+    }
+
+    .corrtag {
+      background: rgba(99, 102, 241, .15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, .3);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 600;
+      margin-left: 3px;
+    }
+
+    .corrval {
+      color: #818cf8;
+      font-weight: 700;
+    }
+
+    /* PREDICTOR */
+    .pgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .pcol {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .pcol.rc {
+      border-top: 3px solid #ef4444;
+    }
+
+    .pcol.bc {
+      border-top: 3px solid #3b82f6;
+    }
+
+    .pcol-t {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 10px;
+    }
+
+    .pcol.rc .pcol-t {
+      color: #f87171;
+    }
+
+    .pcol.bc .pcol-t {
+      color: #60a5fa;
+    }
+
+    .tsel {
+      background: var(--surf2);
+      border: 1px solid var(--bdr2);
+      color: var(--txt);
+      padding: 6px 8px;
+      border-radius: 5px;
+      font-size: 12px;
+      width: 100%;
+      outline: none;
+      margin-bottom: 6px;
+    }
+
+    .pres {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .prhdr {
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 12px;
+      color: var(--dim);
+    }
+
+    .psr {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .psb {
+      text-align: center;
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .psb.red {
+      background: rgba(239, 68, 68, .08);
+      border: 1px solid rgba(239, 68, 68, .2);
+    }
+
+    .psb.blue {
+      background: rgba(59, 130, 246, .08);
+      border: 1px solid rgba(59, 130, 246, .2);
+    }
+
+    .pbig {
+      font-size: 30px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .psb.red .pbig {
+      color: #f87171;
+    }
+
+    .psb.blue .pbig {
+      color: #60a5fa;
+    }
+
+    .psub {
+      font-size: 10px;
+      color: var(--mut);
+      margin-top: 2px;
+    }
+
+    .wbwrap {
+      margin-bottom: 12px;
+    }
+
+    .wblbl {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin-bottom: 3px;
+    }
+
+    .wbbg {
+      height: 10px;
+      border-radius: 99px;
+      background: var(--surf3);
+      overflow: hidden;
+      display: flex;
+    }
+
+    .wbr {
+      height: 100%;
+      background: linear-gradient(90deg, #ef4444, #f87171);
+      transition: width .4s;
+    }
+
+    .wbb {
+      height: 100%;
+      background: linear-gradient(90deg, #60a5fa, #3b82f6);
+      transition: width .4s;
+    }
+
+    .pbk {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .ptr {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      background: var(--surf2);
+      border-radius: 5px;
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+
+    .mctog {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--dim);
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+
+    .toggle {
+      width: 28px;
+      height: 16px;
+      background: var(--surf3);
+      border-radius: 99px;
+      position: relative;
+      cursor: pointer;
+      transition: background .2s;
+      border: 1px solid var(--bdr2);
+      flex-shrink: 0;
+    }
+
+    .toggle.on {
+      background: var(--acc);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s;
+    }
+
+    .toggle.on::after {
+      transform: translateX(12px);
+    }
+
+    .mcnote {
+      font-size: 10px;
+      color: var(--mut);
+      text-align: center;
+      margin-top: 6px;
+    }
+
+    /* PICKLIST */
+    .plcol {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 10px;
+      padding: 13px;
+    }
+
+    .plt {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .drag-list {
+      list-style: none;
+      min-height: 120px;
+    }
+
+    .drag-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      background: var(--surf2);
+      border: 1px solid var(--bdr);
+      border-radius: 6px;
+      margin-bottom: 4px;
+      cursor: grab;
+      user-select: none;
+      flex-wrap: wrap;
+    }
+
+    .drag-item:hover {
+      border-color: var(--bdr2);
+    }
+
+    .drag-item.dragging {
+      opacity: .4;
+    }
+
+    .drag-item.dov {
+      border-color: var(--acc);
+      border-style: dashed;
+    }
+
+    .dhandle {
+      color: var(--mut);
+      font-size: 12px;
+    }
+
+    .drank {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--mut);
+      min-width: 16px;
+    }
+
+    .dtn {
+      font-weight: 700;
+      color: var(--acc);
+      font-size: 13px;
+      min-width: 34px;
+    }
+
+    .dnm {
+      font-size: 11px;
+      color: var(--dim);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .davg {
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 32px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .noteinp {
+      width: 100%;
+      background: var(--surf3);
+      border: 1px solid var(--bdr2);
+      color: var(--txt);
+      padding: 3px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-top: 3px;
+      display: none;
+      resize: none;
+    }
+
+    .noteinp.vis {
+      display: block;
+    }
+
+    .dbtn {
+      background: none;
+      border: 1px solid var(--bdr);
+      color: var(--mut);
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+    }
+
+    .dbtn:hover {
+      border-color: var(--acc2);
+      color: var(--acc2);
+    }
+
+    /* ALLIANCE BOARD */
+    .alboard {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+
+    .alcard {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 8px;
+      padding: 9px 10px;
+    }
+
+    .alcardh {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 7px;
+    }
+
+    .alnum {
+      font-size: 11px;
+      font-weight: 800;
+      color: #07101e;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .an1 {
+      background: #fbbf24;
+    }
+
+    .an2 {
+      background: #94a3b8;
+    }
+
+    .an3 {
+      background: #c87533;
+    }
+
+    .an4 {
+      background: var(--acc);
+    }
+
+    .an5 {
+      background: #818cf8;
+    }
+
+    .an6 {
+      background: #f87171;
+    }
+
+    .an7 {
+      background: #34d399;
+    }
+
+    .an8 {
+      background: #fb923c;
+    }
+
+    .alslot {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 6px;
+      background: var(--surf2);
+      border: 1px solid var(--bdr);
+      border-radius: 5px;
+      margin-bottom: 4px;
+    }
+
+    .alslot select {
+      background: transparent;
+      border: none;
+      color: var(--txt);
+      font-size: 11px;
+      flex: 1;
+      outline: none;
+      cursor: pointer;
+      min-width: 0;
+    }
+
+    .alslot select option {
+      background: var(--surf2);
+    }
+
+    .alscore {
+      font-size: 10px;
+      font-weight: 600;
+      min-width: 28px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .altotal {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 6px;
+      padding-top: 5px;
+      border-top: 1px solid var(--bdr);
+      font-size: 10px;
+    }
+
+    /* COMPARE */
+    .cmpgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .cmpsel {
+      background: var(--surf2);
+      border: 1px solid var(--bdr2);
+      color: var(--txt);
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      width: 100%;
+      outline: none;
+    }
+
+    .cmptbl {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-top: 8px;
+    }
+
+    .cmptbl td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(30, 58, 95, .3);
+    }
+
+    .cmptbl td:first-child {
+      color: var(--mut);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      width: 34%;
+    }
+
+    .cmptbl td:nth-child(2),
+    .cmptbl td:nth-child(3) {
+      text-align: center;
+      font-weight: 600;
+    }
+
+    /* CHARTS */
+    .ccontrols {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-bottom: 12px;
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .axgrp {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .axlbl {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--mut);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    .axsel {
+      background: var(--surf2);
+      border: 1px solid var(--bdr2);
+      color: var(--txt);
+      padding: 5px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      outline: none;
+      cursor: pointer;
+      min-width: 120px;
+    }
+
+    .axsel:focus {
+      border-color: var(--acc);
+    }
+
+    .bwrap {
+      position: relative;
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 9px;
+      padding: 14px;
+      height: 440px;
+    }
+
+    .bwrap.sm {
+      height: 360px;
+    }
+
+    .bdet {
+      background: var(--surf);
+      border: 1px solid var(--bdr2);
+      border-radius: 9px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .bdeth {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .bdetnum {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--acc);
+    }
+
+    .bdetname {
+      font-size: 12px;
+      color: var(--dim);
+      margin-top: 1px;
+    }
+
+    .xbtn {
+      background: none;
+      border: 1px solid var(--bdr);
+      color: var(--mut);
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all .15s;
+    }
+
+    .xbtn:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .bdetcards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .bdcard {
+      background: var(--surf2);
+      border: 1px solid var(--bdr);
+      border-radius: 6px;
+      padding: 8px 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bdcard::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--cc, var(--acc));
+    }
+
+    .bdlbl {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--mut);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 3px;
+    }
+
+    .bdval {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--cc, var(--acc));
+      line-height: 1;
+    }
+
+    .bdsub {
+      font-size: 9px;
+      color: var(--mut);
+      margin-top: 2px;
+    }
+
+    /* COLLAPSIBLE */
+    .collhdr {
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .collarr {
+      margin-left: auto;
+      color: var(--mut);
+      font-size: 12px;
+    }
+
+    .collbody {
+      display: none;
+    }
+
+    .collbody.on {
+      display: block;
+    }
+
+    /* TBA BAR */
+    .tbabar {
+      background: rgba(0, 212, 170, .07);
+      border: 1px solid rgba(0, 212, 170, .2);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: var(--acc);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--bdr);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo" onclick="goto('landing')">FRC <span>Dashboard</span></div>
+    <button class="ntab" id="tab-teams" onclick="goto('teams')">Teams</button>
+    <button class="ntab" id="tab-matches" onclick="goto('matches')">Matches</button>
+    <button class="ntab" id="tab-predictor" onclick="goto('predictor')">Predictor</button>
+    <button class="ntab" id="tab-picklist" onclick="goto('picklist')">Picklist</button>
+    <button class="ntab" id="tab-charts" onclick="goto('charts')">Charts</button>
+    <button class="ntab" id="tab-rankings" onclick="goto('rankings')">Rankings</button>
+    <div class="nright">
+      <button class="bsm" id="tbaBtn" onclick="openTBAModal()">Connect TBA</button>
+      <label class="bsm" style="cursor:pointer">
+        Import CSV
+        <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleCSV(event)">
+      </label>
+    </div>
+  </nav>
+
+  <!-- TBA MODAL -->
+  <div class="mbk" id="tbaModal">
+    <div class="modal">
+      <h2>Blue Alliance</h2>
+      <p>Connect to pull live match scores, qual schedule, and alliance selections. You can skip and use scouting data
+        only.</p>
+      <div class="mlbl">TBA Read API Key</div>
+      <input class="minp" id="tbaKey" type="password" placeholder="Your TBA API key…">
+      <div class="mlbl">Event Key</div>
+      <input class="minp" id="tbaEvt" placeholder="e.g. 2026miket">
+      <div class="errmsg" id="tbaErr"></div>
+      <div class="mrow">
+        <button class="bprim" onclick="connectTBA()">Connect</button>
+        <button class="bsec" onclick="closeTBAModal()">Skip</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LANDING -->
+  <div id="pgLanding" class="page on">
+    <h1>FRC <span>Dashboard</span></h1>
+    <p>Upload your scouting CSV to get started.</p>
+    <div class="dropzone" id="dz">
+      <div style="height:32px"></div>
+      <h3 style="font-size:14px;margin-bottom:5px">Drop CSV here or click to browse</h3>
+      <p style="font-size:11px;color:var(--mut)">Expects: teamNumber, teamName, matchNumber, autonScore, teleopScore,
+        endgameScore, endgameClimbSuccess, allianceScout* …</p>
+      <label class="bprim" style="display:inline-block;margin-top:12px;cursor:pointer;max-width:140px">
+        Choose File
+        <input type="file" accept=".csv" style="display:none" onchange="handleCSV(event)">
+      </label>
+      <button class="bsec" style="display:inline-block;margin-top:12px;max-width:140px" onclick="loadDefaultCSV()">Load Troy Day 1</button>
+    </div>
+  </div>
+
+  <!-- TEAMS -->
+  <div id="pgTeams" class="page">
+    <div class="phdr">
+      <h2>Teams</h2><span class="badge" id="tBadge">0</span>
+      <input class="sbox" id="tSearch" placeholder="Search team # or name…" oninput="renderTeams()">
+    </div>
+    <div class="sbar" style="margin-bottom:8px">
+      <span style="font-weight:700; color:var(--acc); margin-right:8px">Mode:</span>
+      <button class="sbtn on" id="tv-avg" onclick="setTView('avg')">Average</button>
+      <button class="sbtn" id="tv-max" onclick="setTView('max')">Max</button>
+      <button class="sbtn" id="tv-min" onclick="setTView('min')">Min</button>
+      <button class="sbtn" id="tv-corr" onclick="setTView('corr')">TBA Corrected</button>
+    </div>
+    <div class="sbar">
+      <span style="margin-right:8px">Sort:</span>
+      <button class="sbtn on" id="sk-total" onclick="setSort('total')">Total</button>
+      <button class="sbtn" id="sk-auto" onclick="setSort('auto')">Auto</button>
+      <button class="sbtn" id="sk-teleop" onclick="setSort('teleop')">Teleop</button>
+      <button class="sbtn" id="sk-endgame" onclick="setSort('endgame')">Endgame</button>
+      <button class="sbtn" id="sk-climbRate" onclick="setSort('climbRate')">Climb %</button>
+      <button class="sbtn" id="sk-teamNumber" onclick="setSort('teamNumber')">Team #</button>
+      <button class="sbtn" id="sk-validCount" onclick="setSort('validCount')">Matches</button>
+      <button class="sbtn" id="sk-dprMulti" onclick="setDprSort()">DPR</button>
+    </div>
+    <table class="dtbl">
+      <thead>
+        <tr>
+          <th>Team</th>
+          <th>Name</th>
+          <th>M</th>
+          <th>Auto</th>
+          <th>Teleop</th>
+          <th>Endgame</th>
+          <th>Total</th>
+          <th>Climb</th>
+          <th>DPR</th>
+          <th>Role</th>
+          <th>Drive</th>
+        </tr>
+      </thead>
+      <tbody id="tBody"></tbody>
+    </table>
+  </div>
+
+  <!-- MATCHES -->
+  <div id="pgMatches" class="page">
+    <div class="phdr">
+      <h2>Qual Matches</h2><span class="badge" id="mBadge">0</span>
+    </div>
+    <div class="tbabar" id="tbabar" style="display:none">Connected: <span id="tbabarTxt"></span></div>
+    <div id="matchList"></div>
+  </div>
+
+  <!-- PREDICTOR -->
+  <div id="pgPredictor" class="page">
+    <div class="phdr">
+      <h2>Alliance Predictor</h2>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center; flex-wrap:wrap">
+      <select id="predModeSel" class="tsel" style="width:auto; margin:0; padding:4px 8px; font-size:11px" onchange="predModeChanged()">
+        <option value="avg">Mode: Average scores</option>
+        <option value="max">Mode: Max (Ceiling)</option>
+        <option value="min">Mode: Min (Floor)</option>
+      </select>
+      <label class="mctog" style="margin:0;">
+        <div class="toggle" id="corrTog" onclick="togglePredCorr()"></div>
+        Use TBA Corrected
+      </label>
+      <label class="mctog" style="margin:0;">
+        <div class="toggle" id="mcTog" onclick="toggleMC()"></div>
+        Monte Carlo (10k)
+      </label>
+      <select id="dprMode" class="tsel" style="width:auto; margin:0; padding:4px 8px; font-size:11px" onchange="runPred()">
+        <option value="off">Defense DPR: Off</option>
+        <option value="multi">Defense DPR: Multiplier</option>
+        <option value="points">Defense DPR: Points</option>
+        <option value="rating">Defense DPR: Rating</option>
+      </select>
+    </div>
+    <!-- PRESET ROW -->
+    <div
+      style="background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px">
+        <span style="font-size:9px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.4px">Red
+          Alliance</span>
+        <div style="display:flex;gap:6px">
+          <select class="axsel" id="predRedPreset" style="flex:1;font-size:11px"></select>
+          <button class="bsm" onclick="applyPredPreset('red')">Load</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px">
+        <span style="font-size:9px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.4px">Blue
+          Alliance</span>
+        <div style="display:flex;gap:6px">
+          <select class="axsel" id="predBluePreset" style="flex:1;font-size:11px"></select>
+          <button class="bsm" onclick="applyPredPreset('blue')">Load</button>
+        </div>
+      </div>
+      <button class="bsm" style="align-self:flex-end" onclick="clearPredSlots()">✕ Clear all</button>
+    </div>
+    <div class="pgrid">
+      <div class="pcol rc">
+        <div class="pcol-t">Red Alliance</div>
+        <div id="redSlots"></div>
+      </div>
+      <div class="pcol bc">
+        <div class="pcol-t">Blue Alliance</div>
+        <div id="blueSlots"></div>
+      </div>
+    </div>
+    <div id="predRes" style="display:none" class="pres">
+      <div class="prhdr" id="predHdr">Prediction</div>
+      <div class="psr">
+        <div class="psb red">
+          <div class="pbig" id="pRed">—</div>
+          <div class="psub" id="pRedSub"></div>
+        </div>
+        <div style="font-size:16px;font-weight:800;color:var(--mut)">VS</div>
+        <div class="psb blue">
+          <div class="pbig" id="pBlu">—</div>
+          <div class="psub" id="pBluSub"></div>
+        </div>
+      </div>
+      <div class="wbwrap">
+        <div class="wblbl">
+          <span style="color:#f87171;font-weight:700" id="rWin">—%</span>
+          <span style="font-size:10px;color:var(--mut)">Win Probability</span>
+          <span style="color:#60a5fa;font-weight:700" id="bWin">—%</span>
+        </div>
+        <div class="wbbg">
+          <div class="wbr" id="wbR" style="width:50%"></div>
+          <div class="wbb" id="wbB" style="width:50%"></div>
+        </div>
+      </div>
+      <div class="pbk" id="predBk"></div>
+      <div class="mcnote" id="mcNote"></div>
+    </div>
+  </div>
+
+  <!-- PICKLIST -->
+  <div id="pgPicklist" class="page">
+    <div class="phdr">
+      <h2>Picklist</h2>
+      <button class="bsm" onclick="autoRank()">Auto-rank</button>
+      <button class="bsm" onclick="clearAlliances()">Clear board</button>
+      <button class="bsm" onclick="exportPicklist()">Export JSON</button>
+      <label class="bsm" style="cursor:pointer; margin-left:auto;">
+        Import JSON
+        <input type="file" accept=".json" style="display:none" onchange="importPicklist(event)">
+      </label>
+    </div>
+    <!-- alliance board -->
+    <div
+      style="font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+      Alliance Draft Board</div>
+    <div class="alboard" id="alBoard"></div>
+    <!-- remaining + compare -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="plcol">
+        <div class="plt">Remaining <span class="badge" id="plCount">0</span></div>
+        <ul class="drag-list" id="dragList"></ul>
+      </div>
+      <div class="plcol">
+        <div class="plt">Compare</div>
+        <div class="cmpgrid">
+          <div>
+            <div style="font-size:9px;color:var(--mut);margin-bottom:3px">Team A</div><select class="cmpsel" id="cmpA"
+              onchange="renderCmp()"></select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--mut);margin-bottom:3px">Team B</div><select class="cmpsel" id="cmpB"
+              onchange="renderCmp()"></select>
+          </div>
+        </div>
+        <div id="cmpOut"></div>
+      </div>
+    </div>
+    <!-- collapsible charts -->
+    <div class="plcol">
+      <div class="plt collhdr" onclick="togglePlCharts()">
+        Remaining Teams — Charts <span class="badge" id="plChartBadge">0</span>
+        <span class="collarr" id="plChartsArr">▶</span>
+      </div>
+      <div class="collbody" id="plChartsBody">
+        <div class="sbar" style="margin-top:10px">
+          <button class="sbtn on" id="pct-bubble" onclick="setPlTab('bubble')">Scatter</button>
+          <button class="sbtn" id="pct-opr" onclick="setPlTab('opr')">OPR</button>
+          <button class="sbtn" id="pct-rank" onclick="setPlTab('rank')">Rank</button>
+        </div>
+        <div id="pcp-bubble">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+            <select class="axsel" id="plBX" onchange="renderPlBubble()"
+              style="font-size:11px;padding:4px 7px;min-width:110px">
+              <option value="teleopAvg">X: Teleop</option>
+              <option value="autoAvg">X: Auto</option>
+              <option value="totalAvg">X: Total</option>
+              <option value="endgameAvg">X: Endgame</option>
+              <option value="climbRate">X: Climb%</option>
+              <option value="dprMulti">X: DPR Limit</option>
+            </select>
+            <select class="axsel" id="plBY" onchange="renderPlBubble()"
+              style="font-size:11px;padding:4px 7px;min-width:110px">
+              <option value="autoAvg" selected>Y: Auto</option>
+              <option value="teleopAvg">Y: Teleop</option>
+              <option value="totalAvg">Y: Total</option>
+              <option value="endgameAvg">Y: Endgame</option>
+              <option value="climbRate">Y: Climb%</option>
+              <option value="dprMulti">Y: DPR Limit</option>
+            </select>
+            <select class="axsel" id="plBR" onchange="renderPlBubble()"
+              style="font-size:11px;padding:4px 7px;min-width:120px">
+              <option value="endgameAvg" selected>Size: Endgame</option>
+              <option value="totalAvg">Size: Total</option>
+              <option value="autoAvg">Size: Auto</option>
+              <option value="climbRate">Size: Climb%</option>
+              <option value="dprMulti">Size: DPR Limit</option>
+            </select>
+          </div>
+          <div class="bwrap sm"><canvas id="plBubCanvas"></canvas></div>
+          <div id="plBubDet"
+            style="display:none;margin-top:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;padding:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+              <div><span id="plBdN" style="font-size:16px;font-weight:800;color:var(--acc)"></span> <span id="plBdNm"
+                  style="font-size:11px;color:var(--dim)"></span></div>
+              <button class="xbtn" onclick="document.getElementById('plBubDet').style.display='none'">✕</button>
+            </div>
+            <div id="plBdC"
+              style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:5px;margin-bottom:6px">
+            </div>
+            <div id="plBdR"></div>
+          </div>
+        </div>
+        <div id="pcp-opr" style="display:none">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+            <select class="axsel" id="plOM" onchange="renderPlOPR()"
+              style="font-size:11px;padding:4px 7px;min-width:140px">
+              <option value="totalAvg">Total Avg</option>
+              <option value="autoAvg">Auto Avg</option>
+              <option value="teleopAvg">Teleop Avg</option>
+              <option value="endgameAvg">Endgame Avg</option>
+            </select>
+            <select class="axsel" id="plOS" onchange="renderPlOPR()"
+              style="font-size:11px;padding:4px 7px;min-width:120px">
+              <option value="desc">Highest first</option>
+              <option value="asc">Lowest first</option>
+              <option value="team">Team #</option>
+            </select>
+          </div>
+          <div class="bwrap sm"><canvas id="plOprCanvas"></canvas></div>
+          <div id="plOprDet"
+            style="display:none;margin-top:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;padding:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+              <div><span id="plON" style="font-size:16px;font-weight:800;color:var(--acc)"></span> <span id="plONm"
+                  style="font-size:11px;color:var(--dim)"></span></div>
+              <button class="xbtn" onclick="document.getElementById('plOprDet').style.display='none'">✕</button>
+            </div>
+            <div id="plOC"
+              style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:5px;margin-bottom:6px">
+            </div>
+            <div id="plOR"></div>
+          </div>
+        </div>
+        <div id="pcp-rank" style="display:none">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+            <select class="axsel" id="plRM" onchange="renderPlRank()"
+              style="font-size:11px;padding:4px 7px;min-width:140px">
+              <option value="totalAvg">Total Avg</option>
+              <option value="autoAvg">Auto Avg</option>
+              <option value="teleopAvg">Teleop Avg</option>
+              <option value="endgameAvg">Endgame Avg</option>
+            </select>
+          </div>
+          <div class="bwrap sm"><canvas id="plRankCanvas"></canvas></div>
+          <div id="plRankDet"
+            style="display:none;margin-top:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;padding:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+              <div><span id="plRN" style="font-size:16px;font-weight:800;color:var(--acc)"></span> <span id="plRNm"
+                  style="font-size:11px;color:var(--dim)"></span></div>
+              <button class="xbtn" onclick="document.getElementById('plRankDet').style.display='none'">✕</button>
+            </div>
+            <div id="plRC"
+              style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:5px;margin-bottom:6px">
+            </div>
+            <div id="plRR"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div id="pgCharts" class="page">
+    <div class="phdr">
+      <h2>Charts</h2><span class="badge" id="chBadge">0 teams</span>
+    </div>
+    <div class="sbar">
+      <button class="sbtn on" id="ct-bubble" onclick="setChartTab('bubble')">Bubble</button>
+      <button class="sbtn" id="ct-opr" onclick="setChartTab('opr')">Scout OPR</button>
+      <button class="sbtn" id="ct-rank" onclick="setChartTab('rank')">Rank vs Score</button>
+    </div>
+    <!-- BUBBLE -->
+    <div id="cp-bubble">
+      <div class="ccontrols">
+        <div class="axgrp"><label class="axlbl">X Axis</label><select class="axsel" id="bX" onchange="renderBubble()">
+            <option value="teleopAvg" selected>Teleop Avg</option>
+            <option value="autoAvg">Auto Avg</option>
+            <option value="endgameAvg">Endgame Avg</option>
+            <option value="totalAvg">Total Avg</option>
+            <option value="climbRate">Climb %</option>
+            <option value="totalStd">Std Dev σ</option>
+            <option value="dprMulti">DPR Limit</option>
+          </select></div>
+        <div class="axgrp"><label class="axlbl">Y Axis</label><select class="axsel" id="bY" onchange="renderBubble()">
+            <option value="autoAvg" selected>Auto Avg</option>
+            <option value="teleopAvg">Teleop Avg</option>
+            <option value="endgameAvg">Endgame Avg</option>
+            <option value="totalAvg">Total Avg</option>
+            <option value="climbRate">Climb %</option>
+            <option value="totalStd">Std Dev σ</option>
+            <option value="dprMulti">DPR Limit</option>
+          </select></div>
+        <div class="axgrp"><label class="axlbl">Size</label><select class="axsel" id="bR" onchange="renderBubble()">
+            <option value="endgameAvg" selected>Endgame Avg</option>
+            <option value="totalAvg">Total Avg</option>
+            <option value="autoAvg">Auto Avg</option>
+            <option value="teleopAvg">Teleop Avg</option>
+            <option value="climbRate">Climb %</option>
+            <option value="validCount">Matches</option>
+            <option value="dprMulti">DPR Limit</option>
+          </select></div>
+        <div class="axgrp"><label class="axlbl">Color By</label><select class="axsel" id="bCol"
+            onchange="renderBubble()">
+            <option value="role">Top Role</option>
+            <option value="driving">Driving Prof</option>
+            <option value="none">Single</option>
+          </select></div>
+        <label class="mctog" style="margin:0;align-self:flex-end;padding-bottom:2px">
+          <div class="toggle" id="bCorrTog" onclick="toggleBCorr()"></div><span style="font-size:11px">Corrected</span>
+        </label>
+      </div>
+      <div class="bwrap"><canvas id="bubCanvas"></canvas></div>
+      <div id="bubDet" style="display:none" class="bdet">
+        <div class="bdeth">
+          <div>
+            <div class="bdetnum" id="bdN"></div>
+            <div class="bdetname" id="bdNm"></div>
+          </div><button class="xbtn" onclick="document.getElementById('bubDet').style.display='none'">✕</button>
+        </div>
+        <div class="bdetcards" id="bdC"></div>
+        <div id="bdR"></div>
+      </div>
+    </div>
+    <!-- OPR -->
+    <div id="cp-opr" style="display:none">
+      <div class="ccontrols">
+        <div class="axgrp"><label class="axlbl">Metric</label><select class="axsel" id="oM" onchange="renderOPR()">
+            <option value="totalAvg">Total Avg</option>
+            <option value="autoAvg">Auto Avg</option>
+            <option value="teleopAvg">Teleop Avg</option>
+            <option value="endgameAvg">Endgame Avg</option>
+          </select></div>
+        <div class="axgrp"><label class="axlbl">Sort</label><select class="axsel" id="oS" onchange="renderOPR()">
+            <option value="desc">Highest first</option>
+            <option value="asc">Lowest first</option>
+            <option value="team">Team #</option>
+          </select></div>
+        <label class="mctog" style="margin:0;align-self:flex-end;padding-bottom:2px">
+          <div class="toggle" id="oCorrTog" onclick="toggleOCorr()"></div><span style="font-size:11px">Corrected</span>
+        </label>
+      </div>
+      <div class="bwrap"><canvas id="oprCanvas"></canvas></div>
+      <div id="oprDet" style="display:none" class="bdet">
+        <div class="bdeth">
+          <div>
+            <div class="bdetnum" id="oN"></div>
+            <div class="bdetname" id="oNm"></div>
+          </div><button class="xbtn" onclick="document.getElementById('oprDet').style.display='none'">✕</button>
+        </div>
+        <div class="bdetcards" id="oC"></div>
+        <div id="oR"></div>
+      </div>
+    </div>
+    <!-- RANK -->
+    <div id="cp-rank" style="display:none">
+      <div class="ccontrols">
+        <div class="axgrp"><label class="axlbl">Metric</label><select class="axsel" id="rM" onchange="renderRank()">
+            <option value="totalAvg">Total Avg</option>
+            <option value="autoAvg">Auto Avg</option>
+            <option value="teleopAvg">Teleop Avg</option>
+            <option value="endgameAvg">Endgame Avg</option>
+          </select></div>
+        <label class="mctog" style="margin:0;align-self:flex-end;padding-bottom:2px">
+          <div class="toggle" id="rCorrTog" onclick="toggleRCorr()"></div><span style="font-size:11px">Corrected</span>
+        </label>
+      </div>
+      <div class="bwrap"><canvas id="rankCanvas"></canvas></div>
+      <div id="rankDet" style="display:none" class="bdet">
+        <div class="bdeth">
+          <div>
+            <div class="bdetnum" id="rN"></div>
+            <div class="bdetname" id="rNm"></div>
+          </div><button class="xbtn" onclick="document.getElementById('rankDet').style.display='none'">✕</button>
+        </div>
+        <div class="bdetcards" id="rC"></div>
+        <div id="rR"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RANKINGS -->
+  <div id="pgRankings" class="page">
+    <div class="phdr">
+      <h2>TBA Rankings</h2>
+      <span class="badge" id="rkBadge">0 teams</span>
+      <button class="bsm" style="margin-left:auto" onclick="fetchRankings()">Refresh</button>
+    </div>
+    <div id="rkNoTBA" style="text-align:center;padding:48px;color:var(--mut)">
+      <div style="height:32px"></div>
+      <div style="font-size:14px;font-weight:600;color:var(--dim);margin-bottom:6px">TBA not connected</div>
+      <div style="font-size:12px">Connect Blue Alliance from the top nav to pull live rankings.</div>
+      <button class="bprim" style="margin-top:14px;max-width:160px" onclick="openTBAModal()">Connect TBA</button>
+    </div>
+    <div id="rkContent" style="display:none">
+      <table class="dtbl" id="rkTable">
+        <thead>
+          <tr>
+            <th style="cursor:pointer" onclick="rkSort('rank')">Rank ↕</th>
+            <th>Team</th>
+            <th>Name</th>
+            <th style="cursor:pointer" onclick="rkSort('wins')">W ↕</th>
+            <th style="cursor:pointer" onclick="rkSort('losses')">L ↕</th>
+            <th style="cursor:pointer" onclick="rkSort('ties')">T ↕</th>
+            <th style="cursor:pointer" onclick="rkSort('rp')">Rank Points ↕</th>
+            <th style="cursor:pointer" onclick="rkSort('matches')">Matches ↕</th>
+            <th>Scout Avg</th>
+            <th>Corr Avg</th>
+            <th>Scout Rank</th>
+          </tr>
+        </thead>
+        <tbody id="rkBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // ═══════ STATE ═══════
+    let allTeams = [], rawRows = [];
+    let tbaKey = '', tbaEvt = '', tbaData = null;
+    let cal = { scalar: 1, teamScalars: {}, r2: null, rmse: null, n: 0, pts: [], ready: false };
+    let sortKey = 'totalAvg', sortDir = -1;
+    let useMC = false;
+    let predMode = 'avg'; // 'avg', 'max', 'min'
+    let predCorr = false;
+    let plNotes = {}, plOrder = [];
+    let alliances = Array.from({ length: 8 }, () => [null, null, null]);
+    let detCharts = {};
+    let bUseCorr = false, oUseCorr = false, rUseCorr = false;
+    let plChartsOpen = false, activePlTab = 'bubble';
+    let activeChartTab = 'bubble';
+    let chartInsts = {};
+
+    const RCOL = { Cycler: 'rgba(129,140,248,.8)', Scorer: 'rgba(56,189,248,.8)', Feeder: 'rgba(251,191,36,.8)', Defender: 'rgba(248,113,113,.8)', Lobber: 'rgba(52,211,153,.8)', Other: 'rgba(0,212,170,.75)' };
+    const DCOL = { VeryGood: 'rgba(16,185,129,.8)', Good: 'rgba(14,165,233,.8)', Decent: 'rgba(245,158,11,.8)', Bad: 'rgba(239,68,68,.8)', null: 'rgba(100,116,139,.7)' };
+    const ALBL = { autoAvg: 'Auto Avg', teleopAvg: 'Teleop Avg', endgameAvg: 'Endgame Avg', totalAvg: 'Total Avg', climbRate: 'Climb %', totalStd: 'Std Dev σ', validCount: 'Matches', dprMulti: 'DPR Limit' };
+
+    // ═══════ CSV ═══════
+    function handleCSV(e) {
+      const file = e.target ? e.target.files[0] : e;
+      if (!file) return;
+      if (e.target) e.target.value = ''; 
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete(res) {
+          rawRows = res.data;
+          allTeams = buildAllTeams(rawRows);
+          plOrder = allTeams.map(t => t.teamNumber);
+          goto('teams');
+          openTBAModal();
+        },
+        error(err) { alert('CSV parse error: ' + err.message); }
+      });
+    }
+
+    async function loadDefaultCSV() {
+      // For local testing, if the file is in the same folder or reachable
+      try {
+        const response = await fetch('../../../Downloads/TroyDay1Export(in).csv');
+        if (!response.ok) throw new Error('File not found at relative path. Attempting fallback...');
+        const text = await response.text();
+        Papa.parse(text, {
+          header: true,
+          skipEmptyLines: true,
+          complete(res) {
+            rawRows = res.data;
+            allTeams = buildAllTeams(rawRows);
+            plOrder = allTeams.map(t => t.teamNumber);
+            goto('teams');
+            openTBAModal();
+          }
+        });
+      } catch (err) {
+        alert('Could not auto-load CSV from path. Please use "Choose File" and select "TroyDay1Export(in).csv" from your Downloads.');
+      }
+    }
+
+    // Also wire drop zone
+    window.addEventListener('DOMContentLoaded', () => {
+      const dz = document.getElementById('dz');
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+      dz.addEventListener('drop', e => {
+        e.preventDefault(); dz.classList.remove('over');
+        const f = e.dataTransfer.files[0];
+        if (f) {
+          Papa.parse(f, {
+            header: true, skipEmptyLines: true, complete(res) {
+              rawRows = res.data; allTeams = buildAllTeams(rawRows); plOrder = allTeams.map(t => t.teamNumber);
+              goto('teams'); openTBAModal();
+            }
+          });
+        }
+      });
+    });
+
+    // ═══════ STATS ═══════
+    const RATS = ['Bad', 'Decent', 'Good', 'VeryGood'];
+    const RAT_VALS = { 'Bad': 0, 'Decent': 1, 'Good': 2, 'VeryGood': 3 };
+    const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+    const isNA = v => !v || ['NA', 'DNA', '', 'NaN', 'N/A', 'na', 'low'].includes(String(v).trim().toLowerCase());
+    const avg = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
+    const mn = a => a.length ? Math.min(...a) : null;
+    const mx = a => a.length ? Math.max(...a) : null;
+    const std = a => { if (a.length < 2) return 0; const m = avg(a); return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / a.length); };
+    const cleanR = v => { if (!v || isNA(v)) return null; const s = String(v).trim(); return RATS.find(r => r.toLowerCase() === s.toLowerCase()) || null; };
+    const isNS = r => Object.values(r).some(v => String(v).toLowerCase().includes('noshow'));
+
+    function getRoles(row) {
+      const known = ['Cycler', 'Scorer', 'Feeder', 'Defender', 'Lobber'], roles = [];
+      ['allianceScoutShift1Roles', 'allianceScoutShift2Roles', 'allianceScoutShift3Roles', 'allianceScoutShift4Roles'].forEach(c => {
+        const v = row[c]; if (!v || isNA(v)) return;
+        let hit = false; known.forEach(r => { if (v.includes(r)) { roles.push(r); hit = true; } });
+        if (!hit) roles.push(v.trim());
+      });
+      return roles;
+    }
+
+    function buildAllTeams(rows) {
+      const by = {};
+      rows.forEach(r => {
+        const tn = r.teamNumber; if (!tn || isNaN(parseInt(tn))) return;
+        if (!by[tn]) by[tn] = { teamNumber: parseInt(tn), teamName: r.teamName || String(tn), matches: [] };
+        by[tn].matches.push(r);
+      });
+      return Object.values(by).map(computeStats);
+    }
+
+    function computeStats(t) {
+      const valid = t.matches.filter(r => !isNS(r) && (num(r.autonScore) !== null || num(r.teleopScore) !== null));
+      const au = valid.map(r => num(r.autonScore)).filter(v => v !== null);
+      const te = valid.map(r => num(r.teleopScore)).filter(v => v !== null);
+      const en = valid.map(r => num(r.endgameScore)).filter(v => v !== null);
+      const tot = valid.map(r => (num(r.autonScore) || 0) + (num(r.teleopScore) || 0) + (num(r.endgameScore) || 0));
+      const cA = valid.filter(r => !isNA(r.endgameClimbSuccess));
+      const cS = cA.filter(r => String(r.endgameClimbSuccess).toLowerCase().includes('success'));
+      const rc = {}; valid.forEach(r => getRoles(r).forEach(role => { rc[role] = (rc[role] || 0) + 1; }));
+      const topRole = Object.entries(rc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      const getR = col => { const v = valid.map(r => cleanR(r[col])).filter(Boolean); if (!v.length) return null; const c = {}; v.forEach(x => c[x] = (c[x] || 0) + 1); return Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]; };
+      const getAvgR = col => { const v = valid.map(r => cleanR(r[col])).filter(Boolean).map(cat => RAT_VALS[cat]); return v.length ? v.reduce((s, v) => s + v, 0) / v.length : null; };
+      const strengths = [...new Set(valid.map(r => r.allianceScoutStrengths).filter(v => v && !isNA(v) && v.length > 2))];
+      const weaknesses = [...new Set(valid.map(r => r.allianceScoutWeaknesses).filter(v => v && !isNA(v) && v.length > 2))];
+      const history = valid.map(r => ({ match: parseInt(r.matchNumber), auto: num(r.autonScore) || 0, teleop: num(r.teleopScore) || 0, endgame: num(r.endgameScore) || 0, total: (num(r.autonScore) || 0) + (num(r.teleopScore) || 0) + (num(r.endgameScore) || 0), climb: r.endgameClimbSuccess, startPos: r.autonStartingPosition, roles: getRoles(r) })).sort((a, b) => a.match - b.match);
+      return { ...t, validCount: valid.length, autoAvg: avg(au), autoMin: mn(au), autoMax: mx(au), autoStd: std(au), teleopAvg: avg(te), teleopMin: mn(te), teleopMax: mx(te), teleopStd: std(te), endgameAvg: avg(en), endgameMin: mn(en), endgameMax: mx(en), endgameStd: std(en), totalAvg: avg(tot), totalMin: mn(tot), totalMax: mx(tot), totalStd: std(tot), climbRate: cA.length ? cS.length / cA.length : null, climbSuccess: cS.length, climbAttempts: cA.length, topRole, roleCounts: rc, drivingProf: getAvgR('allianceScoutDrivingProficiency'), defenseEff: getAvgR('allianceScoutDefenseEffectivity'), intakeSpeed: getR('allianceScoutIntakeSpeed'), fuelThroughput: getR('allianceScoutFuelThroughput'), strengths, weaknesses, history, dprMatches: [], dprMulti: null, dprPoints: null };
+    }
+
+    // ═══════ TBA ═══════
+    function openTBAModal() { document.getElementById('tbaModal').classList.add('on'); }
+    function closeTBAModal() { document.getElementById('tbaModal').classList.remove('on'); }
+    async function connectTBA() {
+      const k = document.getElementById('tbaKey').value.trim();
+      const e = document.getElementById('tbaEvt').value.trim();
+      const err = document.getElementById('tbaErr'); err.style.display = 'none';
+      if (!k || !e) { err.textContent = 'Fill both fields.'; err.style.display = 'block'; return; }
+      try {
+        const r = await fetch(`https://www.thebluealliance.com/api/v3/event/${e}/matches/simple`, { headers: { 'X-TBA-Auth-Key': k } });
+        if (!r.ok) { err.textContent = `TBA error: ${r.status}`; err.style.display = 'block'; return; }
+        const data = await r.json();
+        tbaKey = k; tbaEvt = e;
+        tbaData = { matches: data.filter(m => m.comp_level === 'qm').sort((a, b) => a.match_number - b.match_number) };
+        computeCalibration();
+        fetchRankings();
+        document.getElementById('tbaBtn').classList.add('ok');
+        document.getElementById('tbaBtn').textContent = 'TBA: Connected';
+        closeTBAModal();
+      } catch (ex) { err.textContent = 'Error: ' + ex.message; err.style.display = 'block'; }
+    }
+
+    // ═══════ CALIBRATION (per-team scalars) ═══════
+    function computeCalibration() {
+      if (!tbaData || !allTeams.length) { cal = { scalar: 1, teamScalars: {}, r2: null, rmse: null, n: 0, pts: [], ready: false }; return; }
+      // Alliance-level points for global scalar + diagnostics
+      const apts = [];
+      // Per-team: { tn: [{scoutedVal, tbaShare, match}] }
+      const tpts = {};
+
+      tbaData.matches.forEach(m => {
+        if (!m.alliances.red.score || m.alliances.red.score < 0) return;
+        const mn_ = m.match_number;
+        [{ tns: m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', ''))), score: m.alliances.red.score, al: 'red' },
+        { tns: m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', ''))), score: m.alliances.blue.score, al: 'blue' }
+        ].forEach(({ tns, score, al }) => {
+          const rows = tns.map(tn => { const t = allTeams.find(x => x.teamNumber === tn); return t ? t.history.find(h => h.match === mn_) : null; });
+          if (rows.some(r => !r) || score <= 0) return;
+          const sumS = rows.reduce((s, r) => s + r.total, 0);
+          apts.push({ scouted: sumS, tba: score, match: mn_, alliance: al });
+          rows.forEach((row, i) => {
+            const tn = tns[i];
+            if (!tpts[tn]) tpts[tn] = [];
+            const frac = sumS > 0 ? row.total / sumS : 1 / 3;
+            tpts[tn].push({ scoutedVal: row.total, tbaShare: frac * score, match: mn_ });
+          });
+        });
+      });
+
+      // Global scalar
+      let globalScalar = 1, r2 = null, rmse = null;
+      if (apts.length) {
+        const ns = apts.reduce((s, p) => s + p.scouted * p.tba, 0);
+        const ds = apts.reduce((s, p) => s + p.scouted * p.scouted, 0);
+        globalScalar = ds > 0 ? ns / ds : 1;
+        const tbamn = apts.reduce((s, p) => s + p.tba, 0) / apts.length;
+        const ssTot = apts.reduce((s, p) => s + (p.tba - tbamn) ** 2, 0);
+        const ssRes = apts.reduce((s, p) => s + (p.tba - globalScalar * p.scouted) ** 2, 0);
+        r2 = ssTot > 0 ? 1 - ssRes / ssTot : null;
+        rmse = Math.sqrt(ssRes / apts.length);
+      }
+
+      // Per-team scalars
+      const teamScalars = {};
+      allTeams.forEach(t => {
+        const pts = tpts[t.teamNumber] || [];
+        const valid = pts.filter(p => p.scoutedVal > 0);
+        if (!valid.length) { teamScalars[t.teamNumber] = { scalar: globalScalar, n: 0, r2: null, rmse: null, fallback: true }; return; }
+        const ns = valid.reduce((s, p) => s + p.scoutedVal * p.tbaShare, 0);
+        const ds = valid.reduce((s, p) => s + p.scoutedVal * p.scoutedVal, 0);
+        const sc = ds > 0 ? ns / ds : globalScalar;
+        const mn2 = valid.reduce((s, p) => s + p.tbaShare, 0) / valid.length;
+        const ssTot = valid.reduce((s, p) => s + (p.tbaShare - mn2) ** 2, 0);
+        const ssRes = valid.reduce((s, p) => s + (p.tbaShare - sc * p.scoutedVal) ** 2, 0);
+        teamScalars[t.teamNumber] = { scalar: sc, n: valid.length, r2: ssTot > 0 ? 1 - ssRes / ssTot : null, rmse: Math.sqrt(ssRes / valid.length), fallback: false };
+      });
+
+      cal = { scalar: globalScalar, teamScalars, r2, rmse, n: apts.length, pts: apts, ready: true };
+
+      // Defensive DPR calculation
+      allTeams.forEach(t => t.dprMatches = []);
+      const getRolesForMatch = (t, mn) => { const mh = t.history.find(x => x.match === mn); return mh ? mh.roles : []; };
+      const getCorrTotal = (tn) => { const t = allTeams.find(x => x.teamNumber === tn); return t ? ((t.totalAvg || 0) * (cal.teamScalars[tn] ? cal.teamScalars[tn].scalar : cal.scalar)) : 0; };
+
+      tbaData.matches.forEach(m => {
+        if (!m.alliances.red.score || m.alliances.red.score < 0) return;
+        const rTns = m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', '')));
+        const bTns = m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', '')));
+        const rScouted = rTns.reduce((s, tn) => s + getCorrTotal(tn), 0);
+        const bScouted = bTns.reduce((s, tn) => s + getCorrTotal(tn), 0);
+
+        rTns.forEach(tn => {
+          const t = allTeams.find(x => x.teamNumber === tn);
+          if (t && getRolesForMatch(t, m.match_number).includes('Defender')) {
+            t.dprMatches.push({ expected: bScouted, actual: m.alliances.blue.score });
+          }
+        });
+        bTns.forEach(tn => {
+          const t = allTeams.find(x => x.teamNumber === tn);
+          if (t && getRolesForMatch(t, m.match_number).includes('Defender')) {
+            t.dprMatches.push({ expected: rScouted, actual: m.alliances.red.score });
+          }
+        });
+      });
+
+      allTeams.forEach(t => {
+        if (t.dprMatches && t.dprMatches.length) {
+          t.dprPoints = avg(t.dprMatches.map(m => m.expected - m.actual));
+          t.dprMulti = avg(t.dprMatches.map(m => m.expected > 0 ? m.actual / m.expected : 1));
+        } else {
+          t.dprPoints = null; t.dprMulti = null;
+        }
+      });
+    }
+
+    function corrected(raw, tn) {
+      if (!cal.ready || raw === null || raw === undefined) return null;
+      const ts = tn != null ? cal.teamScalars[tn] : null;
+      return raw * (ts ? ts.scalar : cal.scalar);
+    }
+    function tCorr(t) { return corrected(t.totalAvg, t.teamNumber); }
+
+    // ═══════ HELPERS ═══════
+    const fmt = (v, d = 1) => (v === null || v === undefined || isNaN(v)) ? '—' : Number(v).toFixed(d);
+    const sc = (v, hi, mid) => !v && v !== 0 ? '' : (v >= hi ? 'hi' : v >= mid ? 'md' : 'lo');
+    function rp(v) { 
+      if (v === null || v === undefined) return '<span class="pill pna">N/A</span>';
+      if (typeof v === 'number') {
+        let cat = 'Bad';
+        if (v >= 2.25) cat = 'VeryGood';
+        else if (v >= 1.25) cat = 'Good';
+        else if (v >= 0.5) cat = 'Decent';
+        const m = { VeryGood: 'pvg', Good: 'pg', Decent: 'pd', Bad: 'pb' };
+        return `<span class="pill ${m[cat] || 'pna'}">${v.toFixed(2)}</span>`;
+      }
+      const m = { verygood: 'pvg', good: 'pg', decent: 'pd', bad: 'pb' }; 
+      return `<span class="pill ${m[v.toLowerCase()] || 'pna'}">${v}</span>`; 
+    }
+    function rt(r) { if (!r) return ''; const b = ['Cycler', 'Scorer', 'Feeder', 'Defender', 'Lobber'].find(x => r.includes(x)) || 'Other'; return `<span class="rt r${b}">${r}</span>`; }
+    function roleColor(topRole) { const b = ['Cycler', 'Scorer', 'Feeder', 'Defender', 'Lobber'].find(x => (topRole || '').includes(x)) || 'Other'; return RCOL[b]; }
+    function detCards(t) {
+      const corr = cal.ready ? tCorr(t) : null;
+      const ts = cal.teamScalars?.[t.teamNumber];
+      const scTag = ts ? `<span class="corrtag">×${ts.scalar.toFixed(2)} ${ts.fallback ? '(g)' : '(t)'}</span>` : '';
+      return `
+    <div class="bdcard" style="--cc:#00d4aa"><div class="bdlbl">Total Avg</div><div class="bdval">${fmt(t.totalAvg)}</div><div class="bdsub">Max ${fmt(t.totalMax, 0)} · σ ${fmt(t.totalStd, 1)}${corr !== null ? ` · Corr <span class="corrval">${fmt(corr)}</span>${scTag}` : ''}</div></div>
+    <div class="bdcard" style="--cc:#6366f1"><div class="bdlbl">Auto</div><div class="bdval">${fmt(t.autoAvg)}</div><div class="bdsub">${fmt(t.autoMin, 0)}–${fmt(t.autoMax, 0)}</div></div>
+    <div class="bdcard" style="--cc:#0ea5e9"><div class="bdlbl">Teleop</div><div class="bdval">${fmt(t.teleopAvg)}</div><div class="bdsub">${fmt(t.teleopMin, 0)}–${fmt(t.teleopMax, 0)}</div></div>
+    <div class="bdcard" style="--cc:#f59e0b"><div class="bdlbl">Endgame</div><div class="bdval">${fmt(t.endgameAvg)}</div><div class="bdsub">${fmt(t.endgameMin, 0)}–${fmt(t.endgameMax, 0)}</div></div>
+    <div class="bdcard" style="--cc:#10b981"><div class="bdlbl">Climb</div><div class="bdval">${t.climbRate !== null ? Math.round(t.climbRate * 100) + '%' : '—'}</div><div class="bdsub">${t.climbSuccess}/${t.climbAttempts}</div></div>
+    <div class="bdcard" style="--cc:#818cf8"><div class="bdlbl">σ</div><div class="bdval">${fmt(t.totalStd, 1)}</div><div class="bdsub">${t.validCount} matches</div></div>`;
+    }
+    function detRow(t) {
+      return `<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">${rt(t.topRole)}${rp(t.drivingProf)}${rp(t.intakeSpeed)}</div>
+    ${t.strengths[0] ? `<div style="margin-top:5px;font-size:11px"><span style="color:var(--grn);font-weight:700">+</span> ${t.strengths[0]}</div>` : ''}
+    ${t.weaknesses[0] ? `<div style="margin-top:3px;font-size:11px"><span style="color:var(--red);font-weight:700">-</span> ${t.weaknesses[0]}</div>` : ''}`;
+    }
+    function fillDetail(numId, nmId, cId, rId, tn) {
+      const t = allTeams.find(x => x.teamNumber === tn); if (!t) return;
+      document.getElementById(numId).textContent = t.teamNumber;
+      document.getElementById(nmId).textContent = t.teamName;
+      document.getElementById(cId).innerHTML = detCards(t);
+      document.getElementById(rId).innerHTML = detRow(t);
+    }
+
+    // ═══════ NAV ═══════
+    const PGMAP = { teams: 'pgTeams', matches: 'pgMatches', predictor: 'pgPredictor', picklist: 'pgPicklist', charts: 'pgCharts', rankings: 'pgRankings', landing: 'pgLanding' };
+    function goto(id) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+      document.querySelectorAll('.ntab').forEach(t => t.classList.remove('on'));
+      document.getElementById(PGMAP[id] || 'pgLanding').classList.add('on');
+      document.getElementById('tab-' + id)?.classList.add('on');
+      if (id === 'teams') renderTeams();
+      if (id === 'matches') renderMatches();
+      if (id === 'predictor') renderPredictor();
+      if (id === 'picklist') renderPicklist();
+      if (id === 'charts') { renderBubble(); renderOPR(); renderRank(); }
+      if (id === 'rankings') renderRankings();
+    }
+
+    // ═══════ RANKINGS ═══════
+    let tbaRankData = null;
+    let rkSortKey = 'rank', rkSortDir = 1;
+
+    async function fetchRankings() {
+      if (!tbaKey || !tbaEvt) { document.getElementById('rkNoTBA').style.display = 'block'; document.getElementById('rkContent').style.display = 'none'; return; }
+      try {
+        const r = await fetch(`https://www.thebluealliance.com/api/v3/event/${tbaEvt}/rankings`, { headers: { 'X-TBA-Auth-Key': tbaKey } });
+        if (!r.ok) return;
+        const data = await r.json();
+        tbaRankData = data;
+        renderRankingsTable();
+      } catch (e) { console.error(e); }
+    }
+
+    function renderRankings() {
+      if (!tbaKey || !tbaEvt) { document.getElementById('rkNoTBA').style.display = 'block'; document.getElementById('rkContent').style.display = 'none'; return; }
+      document.getElementById('rkNoTBA').style.display = 'none';
+      document.getElementById('rkContent').style.display = 'block';
+      if (!tbaRankData) fetchRankings();
+      else renderRankingsTable();
+    }
+
+    function rkSort(key) {
+      if (rkSortKey === key) rkSortDir *= -1; else { rkSortKey = key; rkSortDir = 1; }
+      renderRankingsTable();
+    }
+
+    function renderRankingsTable() {
+      if (!tbaRankData?.rankings) return;
+      const rankings = tbaRankData.rankings;
+      document.getElementById('rkBadge').textContent = `${rankings.length} teams`;
+
+      // Build scout rank lookup (1 = highest totalAvg)
+      const sortedByScout = [...allTeams].filter(t => t.totalAvg !== null).sort((a, b) => (b.totalAvg || 0) - (a.totalAvg || 0));
+      const scoutRankMap = {}; sortedByScout.forEach((t, i) => scoutRankMap[t.teamNumber] = i + 1);
+
+      // Map TBA rankings to rows
+      let rows = rankings.map(r => {
+        const tn = parseInt(r.team_key.replace('frc', ''));
+        const t = allTeams.find(x => x.teamNumber === tn);
+        const wlt = r.record || { wins: 0, losses: 0, ties: 0 };
+        return {
+          rank: r.rank, tn, teamName: t?.teamName || r.team_key,
+          wins: wlt.wins, losses: wlt.losses, ties: wlt.ties,
+          rp: r.sort_orders?.[0] ?? r.extra_stats?.[0] ?? null,
+          matches: r.matches_played,
+          scoutAvg: t?.totalAvg ?? null,
+          corrAvg: t && cal.ready ? tCorr(t) : null,
+          scoutRank: scoutRankMap[tn] ?? null,
+        };
+      });
+
+      // Sort
+      rows.sort((a, b) => {
+        let av = a[rkSortKey], bv = b[rkSortKey];
+        if (av == null) av = rkSortDir > 0 ? 1e9 : -1e9;
+        if (bv == null) bv = rkSortDir > 0 ? 1e9 : -1e9;
+        return (av - bv) * rkSortDir;
+      });
+
+      document.getElementById('rkBody').innerHTML = rows.map(r => {
+        const rankDiff = r.scoutRank !== null && r.rank !== null ? r.rank - r.scoutRank : null;
+        const diffHtml = rankDiff !== null
+          ? `<span style="font-size:11px;color:${rankDiff < 0 ? 'var(--red)' : rankDiff > 0 ? 'var(--grn)' : 'var(--mut)'}">${rankDiff < 0 ? '-' + Math.abs(rankDiff) : rankDiff > 0 ? '+' + rankDiff : '='}</span>`
+          : '—';
+        return `<tr class="cl" onclick="jumpTeam(${r.tn})">
+      <td><strong style="font-size:15px;color:var(--acc)">#${r.rank}</strong></td>
+      <td class="tnum">${r.tn}</td>
+      <td style="font-weight:500">${r.teamName}</td>
+      <td class="sv hi">${r.wins}</td>
+      <td class="sv lo">${r.losses}</td>
+      <td style="color:var(--mut)">${r.ties}</td>
+      <td class="sv md">${r.rp !== null ? r.rp.toFixed(2) : '—'}</td>
+      <td><span class="badge">${r.matches}</span></td>
+      <td class="sv ${sc(r.scoutAvg, 60, 25)}">${fmt(r.scoutAvg)}</td>
+      <td class="sv corrval">${r.corrAvg !== null ? fmt(r.corrAvg) : '—'}</td>
+      <td style="display:flex;align-items:center;gap:5px"><span style="font-size:13px;font-weight:700;color:var(--dim)">#${r.scoutRank ?? '—'}</span> ${diffHtml}</td>
+    </tr>`;
+      }).join('');
+    }
+
+    // ═══════ TEAMS ═══════
+    let tViewMode = 'avg';
+    function setTView(mode) {
+      tViewMode = mode;
+      document.querySelectorAll('#tv-avg, #tv-max, #tv-min, #tv-corr').forEach(b => b.classList.remove('on'));
+      document.getElementById('tv-' + mode)?.classList.add('on');
+      renderTeams();
+    }
+    function getTeamVal(t, key) {
+      if (key === 'teamNumber' || key === 'validCount' || key === 'climbRate') return t[key];
+      if (key === 'auto' || key === 'teleop' || key === 'endgame' || key === 'total') {
+        if (tViewMode === 'avg') return t[key + 'Avg'];
+        if (tViewMode === 'max') return t[key + 'Max'];
+        if (tViewMode === 'min') return t[key + 'Min'];
+        if (tViewMode === 'corr') return cal.ready ? corrected(t[key + 'Avg'], t.teamNumber) : t[key + 'Avg'];
+      }
+      if (key === 'dprMulti' || key === 'dprPoints') return t[key];
+      return t[key] ?? null;
+    }
+    let dprSortMetric = 'dprMulti'; // toggles between 'dprMulti' and 'dprPoints'
+    function setSort(k) {
+      if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = -1; }
+      document.querySelectorAll('.sbar .sbtn').forEach(b => {
+        b.classList.remove('on');
+        b.textContent = b.textContent.replace(/ [\u2191\u2193]$/, '');
+      });
+      const btn = document.getElementById('sk-' + k);
+      if (btn) { btn.classList.add('on'); btn.textContent = btn.textContent.replace(/ [\u2191\u2193]$/, '') + (sortDir > 0 ? ' \u2191' : ' \u2193'); }
+      renderTeams();
+    }
+    function setDprSort() {
+      if (sortKey === 'dprMulti' || sortKey === 'dprPoints') {
+        // Already sorting by DPR: toggle metric
+        dprSortMetric = dprSortMetric === 'dprMulti' ? 'dprPoints' : 'dprMulti';
+        sortKey = dprSortMetric;
+      } else {
+        sortKey = dprSortMetric;
+        sortDir = 1; // ascending by default (lowest multiplier / most point reduction first)
+      }
+      document.querySelectorAll('.sbar .sbtn').forEach(b => {
+        b.classList.remove('on');
+        b.textContent = b.textContent.replace(/ [\u2191\u2193]$/, '');
+      });
+      const btn = document.getElementById('sk-dprMulti'); // Use the ID of the DPR button
+      const label = dprSortMetric === 'dprMulti' ? 'DPR x' : 'DPR pts';
+      if (btn) { btn.classList.add('on'); btn.textContent = label + (sortDir > 0 ? ' \u2191' : ' \u2193'); }
+      renderTeams();
+    }
+    function getFilteredTeams() {
+      const q = (document.getElementById('tSearch')?.value || '').toLowerCase();
+      let a = allTeams.filter(t => !q || String(t.teamNumber).includes(q) || t.teamName.toLowerCase().includes(q));
+      let finalSortKey = sortKey;
+      if (sortKey === 'totalAvg' || sortKey === 'corrAvg' || sortKey === 'totalMax') finalSortKey = 'total'; // fallbacks
+      return [...a].sort((a, b) => {
+        let av = getTeamVal(a, finalSortKey);
+        let bv = getTeamVal(b, finalSortKey);
+        if (av == null) av = sortDir > 0 ? 1e9 : -1e9;
+        if (bv == null) bv = sortDir > 0 ? 1e9 : -1e9;
+        return (av - bv) * sortDir;
+      });
+    }
+    function renderTeams() {
+      const teams = getFilteredTeams();
+      document.getElementById('tBadge').textContent = allTeams.length;
+      document.getElementById('tBody').innerHTML = teams.map(t => {
+        const vC = tViewMode === 'corr';
+        const au = getTeamVal(t, 'auto'), te = getTeamVal(t, 'teleop'), en = getTeamVal(t, 'endgame'), tot = getTeamVal(t, 'total');
+        return `
+    <tr class="cl" onclick="toggleDet(${t.teamNumber})">
+      <td class="tnum">${t.teamNumber}</td>
+      <td style="font-weight:500">${t.teamName}</td>
+      <td><span class="badge">${t.validCount}</span></td>
+      <td class="sv ${sc(au, vC ? 12 : 10, 4)}">${fmt(au)}</td>
+      <td class="sv ${sc(te, vC ? 48 : 40, 15)}">${fmt(te)}</td>
+      <td class="sv ${sc(en, vC ? 12 : 10, 4)}">${fmt(en)}</td>
+      <td class="sv ${sc(tot, vC ? 70 : 60, 25)}" style="font-size:14px;font-weight:700">${fmt(tot)}</td>
+      <td>${t.climbRate !== null ? `<div class="cbar"><div class="cbar-bg"><div class="cbar-fill" style="width:${Math.round(t.climbRate * 100)}%"></div></div><span style="font-size:10px;color:var(--dim)">${Math.round(t.climbRate * 100)}%</span></div>` : '—'}</td>
+      <td class="sv md">${(dprSortMetric === 'dprPoints' && t.dprPoints !== null && t.dprPoints > 0) ? ('-' + Math.round(t.dprPoints) + 'pts') : (t.dprMulti !== null && t.dprMulti < 1 ? t.dprMulti.toFixed(2) + '\u00d7' : '\u2014')}</td>
+      <td>${rt(t.topRole) || '—'}</td>
+      <td>${rp(t.drivingProf)}</td>
+    </tr>
+    <tr class="drow"><td colspan="11"><div class="dpanel" id="dp-${t.teamNumber}">${buildDetHTML(t)}</div></td></tr>
+  `}).join('');
+    }
+    function toggleDet(tn) {
+      const p = document.getElementById('dp-' + tn); if (!p) return;
+      const was = p.classList.contains('on');
+      document.querySelectorAll('.dpanel.on').forEach(x => x.classList.remove('on'));
+      if (!was) { p.classList.add('on'); requestAnimationFrame(() => initDetChart(tn)); }
+    }
+    function buildDetHTML(t) {
+      const re = Object.entries(t.roleCounts).sort((a, b) => b[1] - a[1]);
+      const mxR = re[0]?.[1] || 1;
+      const corr = cal.ready ? tCorr(t) : null;
+      const ts = cal.teamScalars?.[t.teamNumber];
+      const mRows = t.history.map(m => `<tr><td>M${m.match}</td><td>${fmt(m.auto, 0)}</td><td>${fmt(m.teleop, 0)}</td><td>${fmt(m.endgame, 0)}</td><td style="color:var(--acc);font-weight:700">${fmt(m.total, 0)}</td><td>${m.climb && !isNA(m.climb) ? (m.climb.toLowerCase().includes('success') ? 'S' : m.climb.toLowerCase().includes('fail') ? 'F' : m.climb) : '—'}</td></tr>`).join('');
+      return `<div class="dcards">
+    <div class="scard" style="--cc:#00d4aa"><div class="sclbl">Total Avg</div><div class="scval">${fmt(t.totalAvg)}</div><div class="scsub">Min ${fmt(t.totalMin, 0)} · Max ${fmt(t.totalMax, 0)} · σ ${fmt(t.totalStd, 1)}${corr !== null ? `<br>Corr <span class="corrval">${fmt(corr)}</span><span class="corrtag">×${ts?.scalar.toFixed(2) || '?'} ${ts?.fallback ? '(global)' : '(team)'}</span>` : ''}</div></div>
+    <div class="scard" style="--cc:#6366f1"><div class="sclbl">Auto Avg</div><div class="scval">${fmt(t.autoAvg)}</div><div class="scsub">Min ${fmt(t.autoMin, 0)} · Max ${fmt(t.autoMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.autoAvg, t.teamNumber))}</span>` : ''}</div></div>
+    <div class="scard" style="--cc:#0ea5e9"><div class="sclbl">Teleop Avg</div><div class="scval">${fmt(t.teleopAvg)}</div><div class="scsub">Min ${fmt(t.teleopMin, 0)} · Max ${fmt(t.teleopMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.teleopAvg, t.teamNumber))}</span>` : ''}</div></div>
+    <div class="scard" style="--cc:#f59e0b"><div class="sclbl">Endgame Avg</div><div class="scval">${fmt(t.endgameAvg)}</div><div class="scsub">Min ${fmt(t.endgameMin, 0)} · Max ${fmt(t.endgameMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.endgameAvg, t.teamNumber))}</span>` : ''}</div></div>
+    <div class="scard" style="--cc:#10b981"><div class="sclbl">Climb</div><div class="scval">${t.climbRate !== null ? Math.round(t.climbRate * 100) + '%' : '—'}</div><div class="scsub">${t.climbSuccess}/${t.climbAttempts} attempts</div></div>
+    <div class="scard" style="--cc:#ef4444"><div class="sclbl">DPR (Defense)</div><div class="scval">${t.dprMulti !== null && t.dprMulti < 1 ? t.dprMulti.toFixed(2) + '×' : '—'}</div><div class="scsub">${t.dprPoints !== null && t.dprPoints > 0 ? '-' + Math.abs(Math.round(t.dprPoints)) + ' pts limit (avg)' : ''}</div></div>
+  </div>
+  <div class="dgrid">
+    <div class="sec"><div class="sttl">Score/Match</div><div class="cwrap"><canvas id="dc-${t.teamNumber}"></canvas></div></div>
+    <div class="sec" style="overflow:auto;max-height:190px"><div class="sttl">Match Log</div><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="text-align:left;color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr)">M</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Au</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Te</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">En</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Tot</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Cl</th></tr></thead><tbody>${mRows}</tbody></table></div>
+    <div class="sec"><div class="sttl">Roles</div>${re.map(([role, cnt]) => `<div class="rrow"><span style="font-size:10px;min-width:80px">${rt(role)}</span><div class="rbg"><div class="rfill" style="width:${Math.round(cnt / mxR * 100)}%;background:${roleColor(role)}"></div></div><span style="font-size:10px;color:var(--mut)">${cnt}</span></div>`).join('') || '<span style="font-size:11px;color:var(--mut)">No data</span>'}</div>
+    <div class="sec"><div class="sttl">Scout Info</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+        <div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Driving</div>${rp(t.drivingProf)}</div>
+        <div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Defense</div>${rp(t.defenseEff)}</div>
+        <div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Intake</div>${rp(t.intakeSpeed)}</div>
+        <div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Fuel</div>${rp(t.fuelThroughput)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div>${t.strengths.slice(0, 3).map(s => `<div class="snote s"><div style="font-size:9px;font-weight:700;color:var(--grn);margin-bottom:2px">Strength</div>${s}</div>`).join('') || '—'}</div>
+        <div>${t.weaknesses.slice(0, 3).map(s => `<div class="snote w"><div style="font-size:9px;font-weight:700;color:var(--red);margin-bottom:2px">Weakness</div>${s}</div>`).join('') || '—'}</div>
+      </div>
+    </div>
+  </div>`;
+    }
+    function initDetChart(tn) {
+      const t = allTeams.find(x => x.teamNumber === tn); if (!t || !t.history.length) return;
+      if (detCharts[tn]) { detCharts[tn].destroy(); }
+      const ctx = document.getElementById('dc-' + tn)?.getContext('2d'); if (!ctx) return;
+      detCharts[tn] = new Chart(ctx, { type: 'bar', data: { labels: t.history.map(m => `M${m.match}`), datasets: [{ label: 'Auto', data: t.history.map(m => m.auto), backgroundColor: 'rgba(99,102,241,.8)', stack: 's' }, { label: 'Teleop', data: t.history.map(m => m.teleop), backgroundColor: 'rgba(14,165,233,.8)', stack: 's' }, { label: 'Endgame', data: t.history.map(m => m.endgame), backgroundColor: 'rgba(245,158,11,.8)', stack: 's' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 9 }, boxWidth: 8 } }, tooltip: { mode: 'index', callbacks: { footer: items => `Total: ${items.reduce((s, i) => s + i.raw, 0)}` } } }, scales: { x: { stacked: true, ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(30,58,95,.3)' } }, y: { stacked: true, ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(30,58,95,.3)' } } } } });
+    }
+
+    // ═══════ MATCHES ═══════
+    function renderMatches() {
+      const list = document.getElementById('matchList');
+      const bar = document.getElementById('tbabar');
+      let matches = [];
+      if (tbaData) {
+        bar.style.display = 'flex';
+        document.getElementById('tbabarTxt').textContent = `${tbaEvt} · ${tbaData.matches.length} qual matches`;
+        matches = tbaData.matches.map(m => ({ num: m.match_number, red: m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', ''))), blue: m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', ''))), redScore: m.alliances.red.score, blueScore: m.alliances.blue.score, done: m.alliances.red.score !== null && m.alliances.red.score >= 0 }));
+      } else {
+        bar.style.display = 'none';
+        const byM = {}; rawRows.forEach(r => { if (!r.matchNumber || isNS(r)) return; const mn_ = parseInt(r.matchNumber); if (!byM[mn_]) byM[mn_] = { num: mn_, teams: [] }; byM[mn_].teams.push(parseInt(r.teamNumber)); });
+        matches = Object.values(byM).sort((a, b) => a.num - b.num).map(m => ({ num: m.num, red: m.teams.slice(0, 3), blue: m.teams.slice(3, 6), redScore: -1, blueScore: -1, done: false }));
+      }
+      document.getElementById('mBadge').textContent = matches.length;
+      // calibration banner
+      let calHtml = '';
+      if (cal.ready) {
+        const pct = ((cal.scalar - 1) * 100).toFixed(1), sign = cal.scalar >= 1 ? '+' : '';
+        const q = cal.r2 !== null ? (cal.r2 > 0.75 ? 'good' : cal.r2 > 0.45 ? 'ok' : 'poor') : 'poor';
+        const qLabel = { good: 'High confidence', ok: 'Moderate confidence', poor: 'Low confidence' }[q];
+        calHtml = `<div class="calbanner" style="flex-direction:column; align-items:stretch;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%">
+        <div><div style="font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Global Scalar</div><div class="calscalar">${cal.scalar.toFixed(3)}×</div></div>
+        <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--dim);margin-bottom:2px">Scouted scores ${sign}${pct}% vs TBA on average</div>
+        <div style="font-size:10px;color:var(--mut)">${cal.n} alliance data points · R²=${cal.r2 !== null ? cal.r2.toFixed(3) : '—'} · RMSE≈${cal.rmse !== null ? cal.rmse.toFixed(1) : '—'} pts · Per-team scalars computed for ${Object.values(cal.teamScalars).filter(ts => !ts.fallback).length} teams</div></div>
+        <span class="calq cq-${q}">${qLabel}</span>
+      </div>
+      <div class="cwrap" style="height:220px; margin-top:14px;"><canvas id="calChart"></canvas></div>
+    </div>`;
+      }
+      list.innerHTML = calHtml + matches.map(m => buildMCard(m)).join('');
+      if (cal.ready) setTimeout(renderCalChart, 50);
+    }
+
+    function renderCalChart() {
+      if (!cal.ready || !cal.pts.length) return;
+      const ctx = document.getElementById('calChart')?.getContext('2d');
+      if (!ctx) return;
+      if (chartInsts['calChart']) chartInsts['calChart'].destroy();
+      const ptsRed = cal.pts.filter(p => p.alliance === 'red');
+      const ptsBlue = cal.pts.filter(p => p.alliance === 'blue');
+      const maxS = Math.max(...cal.pts.map(p => p.scouted));
+
+      chartInsts['calChart'] = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            { label: 'Red', data: ptsRed.map(p => ({ x: p.scouted, y: p.tba, match: p.match })), backgroundColor: 'rgba(239,68,68,0.7)', pointRadius: 5 },
+            { label: 'Blue', data: ptsBlue.map(p => ({ x: p.scouted, y: p.tba, match: p.match })), backgroundColor: 'rgba(59,130,246,0.7)', pointRadius: 5 },
+            { label: 'Trend', data: [{ x: 0, y: 0 }, { x: maxS + 20, y: (maxS + 20) * cal.scalar }], type: 'line', borderColor: 'rgba(0,212,170,0.8)', pointRadius: 0, borderDash: [5, 5] }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: 'Scouted Total Score', color: '#64748b', font: { size: 11 } }, grid: { color: 'rgba(30,58,95,.3)' }, ticks: { color: '#64748b' } },
+            y: { title: { display: true, text: 'TBA Actual Score', color: '#64748b', font: { size: 11 } }, grid: { color: 'rgba(30,58,95,.3)' }, ticks: { color: '#64748b' } }
+          },
+          plugins: {
+            legend: { labels: { color: '#94a3b8' } },
+            tooltip: {
+              callbacks: {
+                title: items => { const d = items[0]?.raw; return d && d.match != null ? `Qual Match ${d.match}` : ''; },
+                label: item => { const d = item.raw; return [`Scouted: ${d.x}`, `TBA: ${d.y}`]; }
+              }
+            }
+          }
+        }
+      });
+    }
+    const scoutedAll = teams => { let s = 0, c = 0; teams.forEach(tn => { const t = allTeams.find(x => x.teamNumber === tn); if (t && t.totalAvg !== null) { s += t.totalAvg; c++; } }); return c ? s : null; };
+    const scoutedAllCorr = teams => { let s = 0, c = 0; teams.forEach(tn => { const t = allTeams.find(x => x.teamNumber === tn); if (t) { const v = cal.ready ? tCorr(t) : t.totalAvg; if (v !== null) { s += v; c++; } } }); return c ? s : null; };
+    function buildMCard(m) {
+      const sR = scoutedAll(m.red), sB = scoutedAll(m.blue);
+      const allHave = [...m.red, ...m.blue].every(tn => allTeams.find(x => x.teamNumber === tn));
+      const misWarn = allHave ? '' : `<span style="font-size:9px;color:var(--yel);margin-left:5px">Missing data</span>`;
+      const chipR = m.red.map(tn => `<span class="tchip${allTeams.find(x => x.teamNumber === tn) ? '' : ' nd'}" onclick="event.stopPropagation();jumpTeam(${tn})">${tn}</span>`).join('');
+      const chipB = m.blue.map(tn => `<span class="tchip${allTeams.find(x => x.teamNumber === tn) ? '' : ' nd'}" onclick="event.stopPropagation();jumpTeam(${tn})">${tn}</span>`).join('');
+      let stHtml = '', scHtml = '';
+      if (m.done) {
+        const rw = m.redScore > m.blueScore;
+        stHtml = `<span class="mst mst-c">Done</span>`;
+        // Divergence = predicted winner differs from actual winner
+        const predRw = (sR !== null && sB !== null) ? (sR > sB) : (sR !== null ? true : false);
+        const winnerFlipped = (sR !== null && sB !== null) && (predRw !== rw);
+        const dW = winnerFlipped ? `<span class="divwarn">Divergence</span>` : '';
+        scHtml = `<div class="mscores"><div><div class="msv-v ${rw ? 'rw' : ''}">${m.redScore}</div><div class="msv-l">Red TBA</div></div><span style="color:var(--mut);font-weight:700">—</span><div><div class="msv-v ${!rw ? 'bw' : ''}">${m.blueScore}</div><div class="msv-l">Blue TBA</div></div>${dW}</div>`;
+      } else if (sR !== null || sB !== null) {
+        stHtml = `<span class="mst mst-p">Predicted</span>`;
+        scHtml = `<div class="mscores"><div><div class="msv-v pr">${sR !== null ? Math.round(sR) : '?'}</div><div class="msv-l">Est Red</div></div><span style="color:var(--mut)">VS</span><div><div class="msv-v pr">${sB !== null ? Math.round(sB) : '?'}</div><div class="msv-l">Est Blue</div></div></div>`;
+      } else {
+        stHtml = `<span class="mst mst-u">Upcoming</span>`;
+        scHtml = `<div class="mscores"><span style="font-size:11px;color:var(--mut)">No data</span></div>`;
+      }
+      return `<div class="mcard"><div class="mhdr" onclick="toggleMatch('mb-${m.num}')">
+    <span class="mnum">Q${m.num}</span>${stHtml}${misWarn}
+    <div class="alcols"><div class="alblk"><span class="allbl al-r">Red</span>${chipR}</div><div class="alblk"><span class="allbl al-b">Blue</span>${chipB}</div></div>
+    ${scHtml}
+  </div>
+  <div class="mbody" id="mb-${m.num}">${buildMBody(m, sR, sB)}</div></div>`;
+    }
+    function buildMBody(m, sR, sB) {
+      const side = (tns, color, tbaScore, scouted) => `<div class="alsec ${color}"><div class="alst">${color === 'red' ? 'Red' : 'Blue'}</div>
+    ${tns.map(tn => { const t = allTeams.find(x => x.teamNumber === tn); return `<div class="altr"><span style="font-weight:700;color:var(--txt);min-width:38px;font-size:12px">${tn}</span><span style="font-size:11px;color:var(--dim);flex:1">${t ? t.teamName : 'Unknown'}</span>${t ? `<span style="font-size:10px;color:var(--mut)">${fmt(t.autoAvg)}+${fmt(t.teleopAvg)}+${fmt(t.endgameAvg)}</span><span style="font-size:12px;font-weight:700;color:var(--acc)">${fmt(t.totalAvg)}</span>${rt(t.topRole)}` : ''}</div>`; }).join('')}
+    ${m.done && scouted !== null ? `<div style="display:flex;gap:5px;margin-top:6px;font-size:11px;color:var(--mut)"><span>TBA: <strong style="color:${color === 'red' ? '#f87171' : '#60a5fa'}">${tbaScore}</strong></span><span>Scout est: <strong style="color:var(--acc)">${Math.round(scouted)}</strong></span><strong style="color:${Math.abs(tbaScore - scouted) > 25 ? 'var(--yel)' : 'var(--grn)'}">Δ${Math.round(Math.abs(tbaScore - scouted))}</strong></div>` : ''}
+  </div>`;
+      return `<div class="aldet">${side(m.red, 'red', m.redScore, sR)}${side(m.blue, 'blue', m.blueScore, sB)}</div>`;
+    }
+    function toggleMatch(id) { document.getElementById(id)?.classList.toggle('on'); }
+    function jumpTeam(tn) { goto('teams'); setTimeout(() => { document.querySelectorAll('#tBody tr.cl').forEach(r => { if (r.querySelector('.tnum')?.textContent == String(tn)) { r.scrollIntoView({ behavior: 'smooth', block: 'center' }); r.click(); } }); }, 100); }
+
+    // ═══════ PREDICTOR ═══════
+    function toggleMC() { useMC = !useMC; document.getElementById('mcTog').classList.toggle('on', useMC); runPred(); }
+    function togglePredCorr() { predCorr = !predCorr; document.getElementById('corrTog').classList.toggle('on', predCorr); runPred(); }
+    function predModeChanged() { predMode = document.getElementById('predModeSel').value; runPred(); }
+    let predDef = {}; // key: 'red0','red1','red2','blue0','blue1','blue2' => bool
+    function predSlotChanged(al, i) {
+      const el = document.getElementById(`${al}${i}`);
+      const tn = el ? parseInt(el.value) : NaN;
+      const t = tn ? allTeams.find(x => x.teamNumber === tn) : null;
+      predDef[`${al}${i}`] = t && (t.topRole === 'Defender' || (t.roleCounts && t.roleCounts['Defender'] > 0));
+      runPred();
+    }
+    function togglePredDef(al, i) {
+      predDef[`${al}${i}`] = !predDef[`${al}${i}`];
+      runPred();
+    }
+    function buildPredPresets() {
+      const makeOpts = () => {
+        const opts = ['<option value="">— Select —</option>'];
+        const hasAlliance = alliances.some(slots => slots.some(t => t !== null));
+        if (hasAlliance) {
+          opts.push('<optgroup label="Picklist Alliances">');
+          alliances.forEach((slots, ai) => {
+            const filled = slots.filter(t => t !== null); if (!filled.length) return;
+            const names = filled.map(tn => { const t = allTeams.find(x => x.teamNumber === tn); return t ? `${tn} ${t.teamName.slice(0, 10)}` : tn; });
+            opts.push(`<option value="alliance-${ai}">A${ai + 1}: ${names.join(', ')}</option>`);
+          });
+          opts.push('</optgroup>');
+        }
+        if (tbaData && tbaData.matches.length) {
+          opts.push('<optgroup label="Qual Matches (Red side)" id="redMatchGroup">');
+          tbaData.matches.forEach(m => {
+            const r = m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', ''))).join(', ');
+            const done = m.alliances.red.score >= 0 ? ` ✓ ${m.alliances.red.score}` : '';
+            opts.push(`<option value="match-${m.match_number}">Q${m.match_number}${done}: [${r}]</option>`);
+          });
+          opts.push('</optgroup>');
+        }
+        return opts.join('');
+      };
+      const makeBlueOpts = () => {
+        const opts = ['<option value="">— Select —</option>'];
+        const hasAlliance = alliances.some(slots => slots.some(t => t !== null));
+        if (hasAlliance) {
+          opts.push('<optgroup label="Picklist Alliances">');
+          alliances.forEach((slots, ai) => {
+            const filled = slots.filter(t => t !== null); if (!filled.length) return;
+            const names = filled.map(tn => { const t = allTeams.find(x => x.teamNumber === tn); return t ? `${tn} ${t.teamName.slice(0, 10)}` : tn; });
+            opts.push(`<option value="alliance-${ai}">A${ai + 1}: ${names.join(', ')}</option>`);
+          });
+          opts.push('</optgroup>');
+        }
+        if (tbaData && tbaData.matches.length) {
+          opts.push('<optgroup label="Qual Matches (Blue side)">');
+          tbaData.matches.forEach(m => {
+            const b = m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', ''))).join(', ');
+            const done = m.alliances.blue.score >= 0 ? ` ✓ ${m.alliances.blue.score}` : '';
+            opts.push(`<option value="bmatch-${m.match_number}">Q${m.match_number}${done}: [${b}]</option>`);
+          });
+          opts.push('</optgroup>');
+        }
+        return opts.join('');
+      };
+      const rSel = document.getElementById('predRedPreset');
+      const bSel = document.getElementById('predBluePreset');
+      if (rSel) rSel.innerHTML = makeOpts();
+      if (bSel) bSel.innerHTML = makeBlueOpts();
+    }
+    function applyPredPreset(side) {
+      const selId = side === 'red' ? 'predRedPreset' : 'predBluePreset';
+      const v = document.getElementById(selId)?.value; if (!v) return;
+      if (v.startsWith('alliance-')) {
+        const ai = parseInt(v.replace('alliance-', ''));
+        const slots = alliances[ai].filter(t => t !== null);
+        slots.forEach((tn, i) => { const e = document.getElementById(`${side}${i}`); if (e) { e.value = tn; predSlotChanged(side, i); } });
+        for (let i = slots.length; i < 3; i++) { const e = document.getElementById(`${side}${i}`); if (e) { e.value = ''; predSlotChanged(side, i); } }
+        runPred(); return;
+      }
+      if ((v.startsWith('match-') || v.startsWith('bmatch-')) && tbaData) {
+        const isBlue = v.startsWith('bmatch-');
+        const mn_ = parseInt(v.replace('bmatch-', '').replace('match-', ''));
+        const m = tbaData.matches.find(x => x.match_number === mn_); if (!m) return;
+        const tns = (isBlue ? m.alliances.blue : m.alliances.red).team_keys.map(k => parseInt(k.replace('frc', '')));
+        [0, 1, 2].forEach(i => { const e = document.getElementById(`${side}${i}`); if (e) { e.value = tns[i] || ''; predSlotChanged(side, i); } });
+        runPred();
+      }
+    }
+    function clearPredSlots() {
+      ['red', 'blue'].forEach(al => [0, 1, 2].forEach(i => { const e = document.getElementById(`${al}${i}`); if (e) { e.value = ''; predSlotChanged(al, i); } }));
+      runPred();
+    }
+    function renderPredictor() {
+      const opts = allTeams.map(t => `<option value="${t.teamNumber}">${t.teamNumber} — ${t.teamName}</option>`).join('');
+      const e = '<option value="">— Select —</option>';
+      ['red', 'blue'].forEach(al => document.getElementById(al + 'Slots').innerHTML = [0, 1, 2].map(i => `
+          <select class="tsel" id="${al}${i}" onchange="predSlotChanged('${al}', ${i})" style="margin-bottom:6px">${e}${opts}</select>
+      `).join(''));
+      buildPredPresets();
+      runPred();
+    }
+    function getSlots(al) { return [0, 1, 2].map(i => { const v = document.getElementById(`${al}${i}`)?.value; return v ? allTeams.find(t => t.teamNumber === parseInt(v)) : null; }).filter(Boolean); }
+    function getSlotsWithIdx(al) { return [0, 1, 2].map(i => { const v = document.getElementById(`${al}${i}`)?.value; const t = v ? allTeams.find(x => x.teamNumber === parseInt(v)) : null; return t ? { t, i } : null; }).filter(Boolean); }
+    function normSamp(m, s) { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return m + s * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+    // Skewed normal: uses skewness from match history for more realistic sampling
+    function skewSamp(m, s, skew) {
+      const z = normSamp(0, 1);
+      const d = skew / Math.sqrt(1 + skew * skew);
+      const u0 = d * Math.abs(z) + Math.sqrt(1 - d * d) * normSamp(0, 1);
+      return m + s * u0;
+    }
+    function teamSkew(t) {
+      if (!t.history || t.history.length < 3) return 0;
+      const vals = t.history.map(h => h.total);
+      const m = vals.reduce((s, v) => s + v, 0) / vals.length;
+      const n = vals.length;
+      const s2 = vals.reduce((s, v) => s + (v - m) ** 2, 0) / n;
+      if (s2 === 0) return 0;
+      const s3 = vals.reduce((s, v) => s + (v - m) ** 3, 0) / n;
+      return s3 / (s2 ** 1.5); // sample skewness
+    }
+    const DEF_SCORE_MULT = 0.5; // defenders contribute 50% of their scoring (they're busy defending)
+    function teamAvgVal(t) { return predCorr && cal.ready ? (tCorr(t) || 0) : (t.totalAvg || 0); }
+    function teamMaxVal(t) { return predCorr && cal.ready ? (corrected(t.totalMax, t.teamNumber) || 0) : (t.totalMax || 0); }
+    function teamMinVal(t) { return predCorr && cal.ready ? (corrected(t.totalMin, t.teamNumber) || 0) : (t.totalMin || 0); }
+    function teamStdVal(t) { return cal.ready ? (t.totalStd || 0) * (cal.teamScalars[t.teamNumber]?.scalar || cal.scalar) : (t.totalStd || 0); }
+    function runPred() {
+      const R = getSlotsWithIdx('red'), B = getSlotsWithIdx('blue');
+      const res = document.getElementById('predRes');
+      if (!R.length && !B.length) { res.style.display = 'none'; return; }
+      res.style.display = 'block';
+
+      // Primary scoring value depends on mode, with defender penalty
+      const primaryVal = t => predMode === 'max' ? teamMaxVal(t) : predMode === 'min' ? teamMinVal(t) : teamAvgVal(t);
+      const defMult = (alLabel, si) => !!predDef[`${alLabel}${si}`] ? DEF_SCORE_MULT : 1;
+
+      const alSum = (slots, alLabel, valFn) => slots.reduce((s, {t, i}) => s + valFn(t) * defMult(alLabel, i), 0);
+      const alStd = (slots, alLabel) => Math.sqrt(slots.reduce((s, {t, i}) => {
+        const dm = defMult(alLabel, i);
+        return s + (teamStdVal(t) * dm) ** 2;
+      }, 0));
+
+      let rPrim = alSum(R, 'red', primaryVal), bPrim = alSum(B, 'blue', primaryVal);
+      let rAvg = alSum(R, 'red', teamAvgVal), bAvg = alSum(B, 'blue', teamAvgVal);
+      let rMx = alSum(R, 'red', teamMaxVal), bMx = alSum(B, 'blue', teamMaxVal);
+      let rMn = alSum(R, 'red', teamMinVal), bMn = alSum(B, 'blue', teamMinVal);
+      let rSd = alStd(R, 'red'), bSd = alStd(B, 'blue');
+
+      const dprMode = document.getElementById('dprMode')?.value || 'off';
+      let rDprMulti = 1, bDprMulti = 1;
+      let rDprPts = 0, bDprPts = 0;
+
+      if (dprMode !== 'off') {
+        const getBestDpr = (alLabel) => {
+          let bM = 1, bP = 0, bR = 0;
+          [0, 1, 2].forEach(i => {
+            const v = document.getElementById(`${alLabel}${i}`)?.value;
+            const t = v ? allTeams.find(x => x.teamNumber === parseInt(v)) : null;
+            const isDef = !!predDef[`${alLabel}${i}`];
+            if (t && isDef) {
+              if (t.dprMulti !== null && t.dprMulti < bM) bM = t.dprMulti;
+              if (t.dprPoints !== null && t.dprPoints > bP) bP = t.dprPoints;
+              if (t.defenseEff !== null && t.defenseEff > bR) bR = t.defenseEff;
+            }
+          });
+          return { multi: bM, pts: bP, rating: bR };
+        };
+        const rDpr = getBestDpr('red'), bDpr = getBestDpr('blue');
+        bDprMulti = rDpr.multi; bDprPts = rDpr.pts; let bDprRating = rDpr.rating;
+        rDprMulti = bDpr.multi; rDprPts = bDpr.pts; let rDprRating = bDpr.rating;
+
+        if (dprMode === 'multi') {
+          rPrim *= rDprMulti; bPrim *= bDprMulti;
+          rAvg *= rDprMulti; bAvg *= bDprMulti;
+          rMx *= rDprMulti; bMx *= bDprMulti;
+          rMn *= rDprMulti; bMn *= bDprMulti;
+        } else if (dprMode === 'points') {
+          rPrim = Math.max(0, rPrim - rDprPts); bPrim = Math.max(0, bPrim - bDprPts);
+          rAvg = Math.max(0, rAvg - rDprPts); bAvg = Math.max(0, bAvg - bDprPts);
+          rMx = Math.max(0, rMx - rDprPts); bMx = Math.max(0, bMx - bDprPts);
+          rMn = Math.max(0, rMn - rDprPts); bMn = Math.max(0, bMn - bDprPts);
+        } else if (dprMode === 'rating') {
+          // Map rating 0-3 to multiplier 1.0-0.7 (approx 10% reduction per point)
+          const rRM = 1 - (rDprRating * 0.1);
+          const bRM = 1 - (bDprRating * 0.1);
+          rPrim *= rRM; bPrim *= bRM;
+          rAvg *= rRM; bAvg *= bRM;
+          rMx *= rRM; bMx *= bRM;
+          rMn *= rRM; bMn *= bRM;
+        }
+      }
+
+      let rWin = 50, note = '';
+      const hasDprTag = dprMode !== 'off' ? ` · DPR: ${dprMode}` : '';
+      const hasDefTag = [...R, ...B].some(({t, i}) => predDef[`red${i}`] || predDef[`blue${i}`]) ? ' · DEF 0.5x' : '';
+
+      if (useMC && (R.length || B.length)) {
+        // Precompute per-team arrays for hot loop (avoids repeated lookups)
+        const mkArr = (slots, alLabel) => slots.map(({t, i}) => ({
+          mean: primaryVal(t) * defMult(alLabel, i),
+          std: (teamStdVal(t) || 3) * defMult(alLabel, i),
+          skew: teamSkew(t),
+          min: 0
+        }));
+        const rArr = mkArr(R, 'red'), bArr = mkArr(B, 'blue');
+
+        let rW = 0, ties = 0;
+        const N = 15000; // increased sample count for tighter confidence
+        for (let j = 0; j < N; j++) {
+          let rs = 0, bs = 0;
+          for (let k = 0; k < rArr.length; k++) {
+            const a = rArr[k];
+            rs += Math.max(a.min, a.skew !== 0 ? skewSamp(a.mean, a.std, a.skew) : normSamp(a.mean, a.std));
+          }
+          for (let k = 0; k < bArr.length; k++) {
+            const a = bArr[k];
+            bs += Math.max(a.min, a.skew !== 0 ? skewSamp(a.mean, a.std, a.skew) : normSamp(a.mean, a.std));
+          }
+          if (dprMode === 'multi') { rs *= rDprMulti; bs *= bDprMulti; }
+          else if (dprMode === 'points') { rs = Math.max(0, rs - rDprPts); bs = Math.max(0, bs - bDprPts); }
+          if (rs > bs) rW++;
+          else if (rs === bs) ties++;
+        }
+        rWin = Math.round((rW + ties * 0.5) / N * 100);
+        note = `MC ${(N/1000).toFixed(0)}k (skew-adjusted) · ${predMode}${predCorr ? ' (Corr)' : ''} · Red σ≈${fmt(rSd, 1)} · Blue σ≈${fmt(bSd, 1)}${hasDprTag}${hasDefTag}`;
+      } else if (rPrim + bPrim > 0) {
+        rWin = Math.round(rPrim / (rPrim + bPrim) * 100) || 50;
+        note = `${predMode} scores${predCorr ? ' (Corr)' : ''}${hasDprTag}${hasDefTag}`;
+      }
+      const bWin = 100 - rWin;
+
+      const corrTag = predCorr && cal.ready ? `<span class="corrtag" style="font-size:10px">corrected</span>` : '';
+      const modeTag = `<span class="corrtag" style="font-size:10px;background:rgba(245,158,11,.15);color:var(--yel);border-color:rgba(245,158,11,.3)">${predMode}</span>`;
+
+      document.getElementById('pRed').innerHTML = `${R.length ? Math.round(rPrim) : '?'} ${corrTag} ${modeTag}`;
+      document.getElementById('pRedSub').textContent = R.length ? `${predMode==='max' ? 'Max ~'+Math.round(rMx) : predMode==='min' ? 'Min ~'+Math.round(rMn) : 'Avg ~'+Math.round(rAvg)} · σ≈${fmt(rSd, 1)}` : '';
+      document.getElementById('pBlu').innerHTML = `${B.length ? Math.round(bPrim) : '?'} ${corrTag} ${modeTag}`;
+      document.getElementById('pBluSub').textContent = B.length ? `${predMode==='max' ? 'Max ~'+Math.round(bMx) : predMode==='min' ? 'Min ~'+Math.round(bMn) : 'Avg ~'+Math.round(bAvg)} · σ≈${fmt(bSd, 1)}` : '';
+      document.getElementById('rWin').textContent = `${rWin}%`;
+      document.getElementById('bWin').textContent = `${bWin}%`;
+      document.getElementById('wbR').style.width = rWin + '%';
+      document.getElementById('wbB').style.width = bWin + '%';
+      document.getElementById('mcNote').textContent = note;
+      document.getElementById('predHdr').textContent = R.length && B.length
+        ? (rWin > bWin ? `Red favored — ${rWin}%` : `Blue favored — ${bWin}%`)
+        : 'Select teams';
+
+      const tRows = (ts, alLabel) => ts.map(({t, i}) => {
+        const isDef = !!predDef[`${alLabel}${i}`];
+        const hasDpr = isDef && t.dprMulti !== null && t.dprMulti < 1;
+        const tint = hasDpr ? 'background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.2)' : '';
+        const defStyle = isDef ? 'outline:2px solid rgba(239,68,68,0.5); outline-offset:-2px;' : '';
+        const pv = primaryVal(t);
+        const effPv = isDef ? pv * DEF_SCORE_MULT : pv;
+        return `<div class="ptr" style="cursor:pointer;${tint}${defStyle}" onclick="togglePredDef('${alLabel}', ${i})" title="Click to toggle defender">
+    <strong style="color:var(--acc)">${t.teamNumber}</strong>
+    <span style="flex:1;font-size:10px;color:var(--dim)">${t.teamName.slice(0, 14)}</span>
+    <span style="font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums">
+      ${isDef ? `<span style="text-decoration:line-through;opacity:.5">${Math.round(pv)}</span> <span style="color:var(--yel)">${Math.round(effPv)}</span>` : Math.round(pv)}
+      ${predMode !== 'avg' ? `<span style="color:var(--yel);font-size:10px"> (${predMode})</span>` : ''}
+    </span>
+    ${rt(t.topRole)}
+    ${isDef ? `<span style="font-size:9px;font-weight:700;margin-left:4px;padding:1px 5px;border-radius:3px;${hasDpr ? 'color:rgba(239,68,68,0.9);background:rgba(239,68,68,0.12)' : 'color:var(--mut);background:var(--surf3)'}">DEF 0.5x${hasDpr ? ' | DPR ' + t.dprMulti.toFixed(2) + 'x' : ''}</span>` : `<span style="font-size:9px;color:var(--mut);margin-left:4px;opacity:.5">click = def</span>`}
+  </div>`;
+      }).join('');
+      document.getElementById('predBk').innerHTML = `
+    <div><div style="font-size:9px;font-weight:700;color:#f87171;text-transform:uppercase;margin-bottom:4px">Red</div>${tRows(R, 'red') || '\u2014'}</div>
+    <div><div style="font-size:9px;font-weight:700;color:#60a5fa;text-transform:uppercase;margin-bottom:4px">Blue</div>${tRows(B, 'blue') || '\u2014'}</div>`;
+
+      // Tint select dropdowns slightly red if team has DPR and is marked defender
+      ['red', 'blue'].forEach(al => [0, 1, 2].forEach(idx => {
+        const el = document.getElementById(`${al}${idx}`);
+        if (!el) return;
+        const slot = (al === 'red' ? R : B).find(s => s.i === idx);
+        const isDef = !!predDef[`${al}${idx}`];
+        if (slot && isDef && slot.t.dprMulti !== null && slot.t.dprMulti < 1) {
+          el.style.backgroundColor = 'rgba(239,68,68,0.1)';
+          el.style.borderColor = 'rgba(239,68,68,0.3)';
+        } else {
+          el.style.backgroundColor = '';
+          el.style.borderColor = '';
+        }
+      }));
+    }
+
+    // ═══════ PICKLIST ═══════
+    function pickedTeams() { return alliances.flat().filter(t => t !== null); }
+    function buildPresets() {
+      const sel = document.getElementById('presetSel'); if (!sel) return;
+      const opts = ['<option value="">— Load preset —</option>'];
+      if (tbaData) {
+        opts.push('<optgroup label="Qual Matches (TBA)">');
+        tbaData.matches.forEach(m => {
+          const r = m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', ''))), b = m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', '')));
+          opts.push(`<option value="match-${m.match_number}">Q${m.match_number}: Red [${r.join(',')}] vs Blue [${b.join(',')}]</option>`);
+        });
+        opts.push('</optgroup>');
+      }
+      opts.push('<optgroup label="Auto-fill"><option value="pl-fill">Fill alliances from ranked remaining teams</option></optgroup>');
+      sel.innerHTML = opts.join('');
+    }
+    function applyPreset() {
+      const v = document.getElementById('presetSel').value; if (!v) return;
+      if (v.startsWith('match-') && tbaData) {
+        const mn_ = parseInt(v.replace('match-', ''));
+        const m = tbaData.matches.find(x => x.match_number === mn_); if (!m) return;
+        const r = m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', '')));
+        const b = m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', '')));
+        [0, 1, 2].forEach(i => { alliances[0][i] = r[i] || null; alliances[1][i] = b[i] || null; });
+      } else if (v === 'pl-fill') {
+        const picked = pickedTeams();
+        const rem = [...allTeams].filter(t => !picked.includes(t.teamNumber)).sort((a, b) => (teamAvgVal(b)) - (teamAvgVal(a))).map(t => t.teamNumber);
+        let ri = 0; for (let ai = 0; ai < 8 && ri < rem.length; ai++)for (let si = 0; si < 3 && ri < rem.length; si++)if (!alliances[ai][si]) alliances[ai][si] = rem[ri++];
+      }
+      renderAlBoard(); renderDL();
+    }
+    function clearAlliances() { alliances = Array.from({ length: 8 }, () => [null, null, null]); renderAlBoard(); renderDL(); }
+    function exportPicklist() {
+      const data = { plOrder, plNotes, alliances };
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'picklist.json';
+      a.click();
+    }
+    function importPicklist(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (evt) {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (data.plOrder) plOrder = data.plOrder;
+          if (data.plNotes) plNotes = data.plNotes;
+          if (data.alliances) alliances = data.alliances;
+          renderAlBoard(); renderDL();
+        } catch (err) { alert('Invalid JSON'); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+    function renderPicklist() {
+      const sel = t => `<option value="${t.teamNumber}">${t.teamNumber} — ${t.teamName}</option>`;
+      const e = '<option value="">— Select —</option>';
+      document.getElementById('cmpA').innerHTML = e + allTeams.map(sel).join('');
+      document.getElementById('cmpB').innerHTML = e + allTeams.map(sel).join('');
+      buildPresets(); renderAlBoard(); renderDL();
+    }
+    function renderAlBoard() {
+      const picked = pickedTeams();
+      const nums = ['an1', 'an2', 'an3', 'an4', 'an5', 'an6', 'an7', 'an8'];
+      document.getElementById('alBoard').innerHTML = alliances.map((slots, ai) => {
+        const tot = slots.reduce((s, tn) => { const t = tn ? allTeams.find(x => x.teamNumber === tn) : null; return s + (t ? teamAvgVal(t) : 0); }, 0);
+        const has = slots.some(t => t !== null);
+        const opts = tn => `<option value="">— None —</option>${allTeams.map(t => { const usedElse = picked.includes(t.teamNumber) && t.teamNumber !== tn; return `<option value="${t.teamNumber}"${t.teamNumber === tn ? ' selected' : ''}${usedElse ? ' disabled' : ''}>${t.teamNumber} ${t.teamName.slice(0, 12)}</option>`; }).join('')}`;
+        return `<div class="alcard"><div class="alcardh"><span class="alnum ${nums[ai]}">A${ai + 1}</span><span style="font-size:11px;font-weight:600;color:var(--dim)">Alliance ${ai + 1}</span>${has ? `<span style="margin-left:auto;font-size:10px;color:var(--mut)">~${Math.round(tot)}</span>` : ''}</div>
+      ${slots.map((tn, si) => { const t = tn ? allTeams.find(x => x.teamNumber === tn) : null; const sv = t ? teamAvgVal(t) : null; const label = si === 0 ? 'Capt' : si === 1 ? '1st' : '2nd'; return `<div class="alslot"><span style="font-size:9px;color:var(--mut);min-width:28px">${label}</span><select onchange="setAlSlot(${ai},${si},this.value)">${opts(tn)}</select><span class="alscore${cal.ready ? ' corrval' : ''}">${sv !== null ? fmt(sv) : '—'}</span></div>`; }).join('')}
+      ${has ? `<div class="altotal"><span style="color:var(--mut)">Total${cal.ready ? ' (corr)' : ''}</span><span style="font-weight:700;color:var(--acc);font-size:13px">${Math.round(tot)}</span></div>` : ''}
+    </div>`;
+      }).join('');
+    }
+    function setAlSlot(ai, si, val) {
+      const tn = val ? parseInt(val) : null;
+      if (tn !== null) alliances.forEach((slots, a) => slots.forEach((t, s) => { if (t === tn && !(a === ai && s === si)) alliances[a][s] = null; }));
+      alliances[ai][si] = tn; renderAlBoard(); renderDL();
+      // keep predictor preset list in sync
+      buildPredPresets();
+    }
+    function renderDL() {
+      const picked = pickedTeams();
+      const remaining = plOrder.filter(tn => !picked.includes(tn));
+      document.getElementById('plCount').textContent = remaining.length;
+      const cb = document.getElementById('plChartBadge'); if (cb) cb.textContent = remaining.length;
+      if (!remaining.length) { document.getElementById('dragList').innerHTML = `<li style="text-align:center;padding:16px;color:var(--mut);font-size:12px">All teams drafted</li>`; if (plChartsOpen) renderPlChartTab(activePlTab); return; }
+      document.getElementById('dragList').innerHTML = remaining.map((tn, i) => {
+        const t = allTeams.find(x => x.teamNumber === tn); if (!t) return '';
+        const note = plNotes[tn] || '';
+        return `<li class="drag-item" draggable="true" id="pl-${tn}" ondragstart="dS(event,${tn})" ondragover="dO(event,${tn})" ondrop="dD(event,${tn})" ondragleave="dL(event)">
+      <span class="dhandle">⠿</span><span class="drank">${i + 1}</span><span class="dtn">${tn}</span>
+      <span class="dnm">${t.teamName}</span>
+      <span class="davg${cal.ready ? ' corrval' : ''}">${fmt(teamAvgVal(t))}</span>
+      ${rt(t.topRole)}${rp(t.drivingProf)}
+      ${t.dprMulti !== null && t.dprMulti < 1 ? `<span style="font-size:10px;font-weight:700;color:rgba(239,68,68,0.8);background:rgba(239,68,68,0.1);padding:2px 4px;border-radius:4px;white-space:nowrap;margin-left:4px;">DPR ${t.dprMulti.toFixed(2)}x</span>` : ''}
+      <div style="display:flex;gap:3px"><button class="dbtn${note ? ' on' : ''}" onclick="toggleNote(${tn})" style="width:auto;padding:0 4px">Note</button></div>
+      <textarea class="noteinp${note ? ' vis' : ''}" id="ni-${tn}" placeholder="Scout note…" rows="1" oninput="plNotes[${tn}]=this.value">${note}</textarea>
+    </li>`;
+      }).join('');
+      if (plChartsOpen) renderPlChartTab(activePlTab);
+    }
+    let plDrag = null;
+    function dS(e, tn) { plDrag = tn; document.getElementById('pl-' + tn)?.classList.add('dragging'); }
+    function dO(e, tn) { e.preventDefault(); if (tn !== plDrag) document.getElementById('pl-' + tn)?.classList.add('dov'); }
+    function dL(e) { e.currentTarget.classList.remove('dov'); }
+    function dD(e, tn) {
+      e.preventDefault(); document.querySelectorAll('.drag-item').forEach(el => el.classList.remove('dov', 'dragging'));
+      if (plDrag === tn) return;
+      const picked = pickedTeams(), rem = plOrder.filter(t => !picked.includes(t));
+      const f = rem.indexOf(plDrag), to = rem.indexOf(tn); if (f < 0 || to < 0) return;
+      rem.splice(f, 1); rem.splice(to, 0, plDrag);
+      plOrder = [...picked, ...rem.filter(t => !picked.includes(t))];
+      renderDL(); plDrag = null;
+    }
+    function toggleNote(tn) { document.getElementById('ni-' + tn)?.classList.toggle('vis'); }
+    function autoRank() {
+      const picked = pickedTeams();
+      const free = [...allTeams].filter(t => !picked.includes(t.teamNumber)).sort((a, b) => teamAvgVal(b) - teamAvgVal(a)).map(t => t.teamNumber);
+      plOrder = [...picked, ...free]; renderDL();
+    }
+    function renderCmp() {
+      const ta = allTeams.find(t => t.teamNumber === parseInt(document.getElementById('cmpA').value));
+      const tb = allTeams.find(t => t.teamNumber === parseInt(document.getElementById('cmpB').value));
+      const el = document.getElementById('cmpOut'); if (!ta && !tb) { el.innerHTML = ''; return; }
+      const row = (lbl, va, vb, hi = true) => { const na = va === null || va === undefined || isNaN(va), nb = vb === null || vb === undefined || isNaN(vb); const aw = !na && !nb && (hi ? va > vb : va < vb), bw = !na && !nb && (hi ? vb > va : vb < va); return `<tr><td>${lbl}</td><td style="${aw ? 'color:var(--grn)' : ''}">${na ? '—' : fmt(va)}</td><td style="${bw ? 'color:var(--grn)' : ''}">${nb ? '—' : fmt(vb)}</td></tr>`; };
+      el.innerHTML = `<table class="cmptbl"><thead><tr><th>Stat</th><th style="text-align:center">${ta ? ta.teamNumber : '—'}</th><th style="text-align:center">${tb ? tb.teamNumber : '—'}</th></tr></thead><tbody>
+    ${row('Total Avg', ta?.totalAvg, tb?.totalAvg)}
+    ${cal.ready ? row('Corrected Avg', ta ? tCorr(ta) : null, tb ? tCorr(tb) : null) : ''}
+    ${row('Total Max', ta?.totalMax, tb?.totalMax)}
+    ${row('Std Dev σ', ta?.totalStd, tb?.totalStd, false)}
+    ${row('Auto Avg', ta?.autoAvg, tb?.autoAvg)}
+    ${row('Teleop Avg', ta?.teleopAvg, tb?.teleopAvg)}
+    ${row('Endgame Avg', ta?.endgameAvg, tb?.endgameAvg)}
+    ${row('Climb %', ta?.climbRate != null ? ta.climbRate * 100 : null, tb?.climbRate != null ? tb.climbRate * 100 : null)}
+    ${row('Matches', ta?.validCount, tb?.validCount)}
+    <tr><td>Role</td><td style="text-align:center">${ta ? rt(ta.topRole) || '—' : '—'}</td><td style="text-align:center">${tb ? rt(tb.topRole) || '—' : '—'}</td></tr>
+    <tr><td>Driving</td><td style="text-align:center">${ta ? rp(ta.drivingProf) : '—'}</td><td style="text-align:center">${tb ? rp(tb.drivingProf) : '—'}</td></tr>
+  </tbody></table>`;
+    }
+
+    // ═══════ PICKLIST CHARTS (collapsible) ═══════
+    function togglePlCharts() {
+      plChartsOpen = !plChartsOpen;
+      document.getElementById('plChartsBody').classList.toggle('on', plChartsOpen);
+      document.getElementById('plChartsArr').textContent = plChartsOpen ? 'v' : '>';
+      if (plChartsOpen) setTimeout(() => renderPlChartTab(activePlTab), 50);
+    }
+    function setPlTab(tab) {
+      activePlTab = tab;
+      ['bubble', 'opr', 'rank'].forEach(t => { document.getElementById('pcp-' + t).style.display = t === tab ? 'block' : 'none'; document.getElementById('pct-' + t)?.classList.toggle('on', t === tab); });
+      renderPlChartTab(tab);
+    }
+    function renderPlChartTab(tab) { if (tab === 'bubble') renderPlBubble(); else if (tab === 'opr') renderPlOPR(); else if (tab === 'rank') renderPlRank(); }
+
+    // ═══════ CHARTS PAGE ═══════
+    function setChartTab(tab) {
+      activeChartTab = tab;
+      ['bubble', 'opr', 'rank'].forEach(t => { document.getElementById('cp-' + t).style.display = t === tab ? 'block' : 'none'; document.getElementById('ct-' + t)?.classList.toggle('on', t === tab); });
+      if (tab === 'bubble') renderBubble(); else if (tab === 'opr') renderOPR(); else if (tab === 'rank') renderRank();
+    }
+    function toggleBCorr() { bUseCorr = !bUseCorr; document.getElementById('bCorrTog').classList.toggle('on', bUseCorr); renderBubble(); }
+    function toggleOCorr() { oUseCorr = !oUseCorr; document.getElementById('oCorrTog').classList.toggle('on', oUseCorr); renderOPR(); }
+    function toggleRCorr() { rUseCorr = !rUseCorr; document.getElementById('rCorrTog').classList.toggle('on', rUseCorr); renderRank(); }
+
+    // ─── SHARED CHART UTILS ───
+    function getVal(t, key, useCorr) {
+      if (key === 'climbRate') return t.climbRate !== null ? t.climbRate * 100 : null;
+      const raw = t[key] ?? null;
+      return (useCorr && cal.ready && raw !== null) ? corrected(raw, t.teamNumber) : raw;
+    }
+    function mkBubble(teams, xKey, yKey, rKey, colorBy, canvasId, detIds, useCorr) {
+      if (!teams.length) return;
+      const rVals = teams.map(t => getVal(t, rKey, useCorr)).filter(v => v != null && v > 0);
+      const rMn = rVals.length ? Math.min(...rVals) : 1, rMx = rVals.length ? Math.max(...rVals) : 1;
+      const rSc = v => rMx > rMn ? 8 + ((v - rMn) / (rMx - rMn)) * 26 : 16;
+      const points = teams.map(t => {
+        const x = getVal(t, xKey, useCorr), y = getVal(t, yKey, useCorr), r = getVal(t, rKey, useCorr);
+        if (x === null || y === null) return null;
+        const base = ['Cycler', 'Scorer', 'Feeder', 'Defender', 'Lobber'].find(b => (t.topRole || '').includes(b)) || 'Other';
+        const color = colorBy === 'role' ? RCOL[base] : colorBy === 'driving' ? (DCOL[t.drivingProf] || DCOL[null]) : 'rgba(0,212,170,.75)';
+        return { x, y, r: r != null ? rSc(r) : 14, tn: t.teamNumber, teamName: t.teamName, rawR: r, color, base };
+      }).filter(Boolean);
+      if (chartInsts[canvasId]) { chartInsts[canvasId].destroy(); }
+      const ctx = document.getElementById(canvasId)?.getContext('2d'); if (!ctx) return;
+      // Group by color key for legend
+      const grpKey = colorBy === 'role' ? 'base' : colorBy === 'driving' ? (p => { const t2 = teams.find(x => x.teamNumber === p.tn); return t2?.drivingProf || 'Unknown'; }) : () => 'Teams';
+      const groups = {};
+      points.forEach(p => { const k = colorBy === 'role' ? p.base : colorBy === 'driving' ? (teams.find(x => x.teamNumber === p.tn)?.drivingProf || 'Unknown') : 'Teams'; if (!groups[k]) groups[k] = []; groups[k].push(p); });
+      const datasets = Object.entries(groups).map(([lbl, pts]) => ({ label: lbl, data: pts.map(p => ({ x: p.x, y: p.y, r: p.r, tn: p.tn, teamName: p.teamName, rawR: p.rawR })), backgroundColor: pts.map(p => p.color), borderColor: pts.map(p => p.color.replace(/[\d.]+\)$/, '.3)')), borderWidth: 1 }));
+      const [nId, nmId, cId, rId, detEl] = detIds;
+      chartInsts[canvasId] = new Chart(ctx, { type: 'bubble', data: { datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 9, padding: 10 } }, tooltip: { callbacks: { label: item => { const d = item.raw; return [`${d.tn} — ${d.teamName}`, `${ALBL[xKey]}: ${d.x.toFixed(1)}`, `${ALBL[yKey]}: ${d.y.toFixed(1)}`, `${ALBL[rKey]}: ${d.rawR != null ? d.rawR.toFixed(1) : '—'}`]; } } } }, scales: { x: { title: { display: true, text: ALBL[xKey] + (useCorr && cal.ready ? ' (corr)' : ''), color: '#64748b', font: { size: 10 } }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,58,95,.3)' } }, y: { title: { display: true, text: ALBL[yKey] + (useCorr && cal.ready ? ' (corr)' : ''), color: '#64748b', font: { size: 10 } }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,58,95,.3)' } } }, onClick: (e, els) => { if (!els.length) { document.getElementById(detEl).style.display = 'none'; return; } const d = chartInsts[canvasId].data.datasets[els[0].datasetIndex].data[els[0].index]; document.getElementById(detEl).style.display = 'block'; fillDetail(nId, nmId, cId, rId, d.tn); } }, plugins: [{ id: 'lbl', afterDatasetsDraw(ch) { const ctx2 = ch.ctx; ch.data.datasets.forEach((ds, di) => { ds.data.forEach((d, i) => { const meta = ch.getDatasetMeta(di); if (meta.hidden) return; const el = meta.data[i]; if (!el) return; const r = el.options?.radius || d.r || 12; if (r < 11) return; ctx2.save(); ctx2.fillStyle = 'rgba(255,255,255,.88)'; ctx2.font = `bold ${Math.min(r * 0.6, 12)}px sans-serif`; ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle'; ctx2.fillText(String(d.tn), el.x, el.y); ctx2.restore(); }); }); } }] });
+    }
+    function mkBar(teams, metric, sortMode, canvasId, detIds, useCorr, isRank = false) {
+      if (!teams.length) return;
+      const getV = t => getVal(t, metric, useCorr);
+      let sorted = [...teams].filter(t => getV(t) != null);
+      if (isRank || sortMode === 'desc') sorted.sort((a, b) => getV(b) - getV(a));
+      else if (sortMode === 'asc') sorted.sort((a, b) => getV(a) - getV(b));
+      else sorted.sort((a, b) => a.teamNumber - b.teamNumber);
+      const labels = isRank ? sorted.map((_, i) => `#${i + 1}`) : sorted.map(t => String(t.teamNumber));
+      const [nId, nmId, cId, rId, detEl] = detIds;
+      if (chartInsts[canvasId]) chartInsts[canvasId].destroy();
+      const ctx = document.getElementById(canvasId)?.getContext('2d'); if (!ctx) return;
+
+      // Use stacked auto/teleop/endgame when showing a score metric (not climb/std/matches)
+      const isScore = ['totalAvg', 'autoAvg', 'teleopAvg', 'endgameAvg'].includes(metric);
+      let datasets;
+      if (isScore && !isRank) {
+        const sc = useCorr && cal.ready;
+        const autoV = sorted.map(t => +(sc ? corrected(t.autoAvg, t.teamNumber) : t.autoAvg || 0).toFixed(2));
+        const teleV = sorted.map(t => +(sc ? corrected(t.teleopAvg, t.teamNumber) : t.teleopAvg || 0).toFixed(2));
+        const endV = sorted.map(t => +(sc ? corrected(t.endgameAvg, t.teamNumber) : t.endgameAvg || 0).toFixed(2));
+        datasets = [
+          { label: 'Auto', data: autoV, backgroundColor: 'rgba(99,102,241,.85)', stack: 's', borderWidth: 0, borderRadius: 0 },
+          { label: 'Teleop', data: teleV, backgroundColor: 'rgba(14,165,233,.85)', stack: 's', borderWidth: 0, borderRadius: 0 },
+          { label: 'Endgame', data: endV, backgroundColor: 'rgba(245,158,11,.85)', stack: 's', borderWidth: 0, borderRadius: { topLeft: 3, topRight: 3 } },
+        ];
+      } else {
+        const colors = sorted.map((_, i) => {
+          if (!isRank) return roleColor(sorted[i].topRole);
+          const p = i / Math.max(sorted.length - 1, 1);
+          return `rgba(${Math.round(16 + p * (239 - 16))},${Math.round(185 * Math.max(0, 1 - p * 1.5))},${Math.round(129 * Math.max(0, 1 - p * 2))},.8)`;
+        });
+        const values = sorted.map(t => +(getV(t) || 0).toFixed(2));
+        datasets = [{ label: ALBL[metric] + (useCorr && cal.ready ? ' (corr)' : ''), data: values, backgroundColor: colors, borderWidth: 0, borderRadius: 3 }];
+      }
+
+      chartInsts[canvasId] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 10, padding: 10 }, display: isScore && !isRank },
+            tooltip: {
+              mode: 'index',
+              callbacks: {
+                title: items => isRank ? `Rank ${items[0].label} — ${sorted[items[0].dataIndex].teamNumber} ${sorted[items[0].dataIndex].teamName}` : sorted[items[0].dataIndex].teamName,
+                footer: items => isScore && !isRank ? `Total: ${items.reduce((s, i) => s + i.raw, 0).toFixed(1)}` : undefined,
+              }
+            }
+          },
+          scales: {
+            x: { stacked: isScore && !isRank, ticks: { color: '#64748b', font: { size: isRank ? 9 : 10 } }, grid: { color: 'rgba(30,58,95,.3)' } },
+            y: { stacked: isScore && !isRank, title: { display: true, text: ALBL[metric] + (useCorr && cal.ready ? ' (corr)' : ''), color: '#64748b', font: { size: 10 } }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,58,95,.3)' } }
+          },
+          onClick: (e, els) => {
+            if (!els.length) { document.getElementById(detEl).style.display = 'none'; return; }
+            const tn = sorted[els[0].index].teamNumber;
+            document.getElementById(detEl).style.display = 'block';
+            fillDetail(nId, nmId, cId, rId, tn);
+          }
+        }
+      });
+    }
+
+    // ─── Charts page renders ───
+    function renderBubble() { if (!allTeams.length) return; document.getElementById('chBadge').textContent = `${allTeams.length} teams`; mkBubble(allTeams, document.getElementById('bX').value, document.getElementById('bY').value, document.getElementById('bR').value, document.getElementById('bCol').value, 'bubCanvas', ['bdN', 'bdNm', 'bdC', 'bdR', 'bubDet'], bUseCorr); }
+    function renderOPR() { if (!allTeams.length) return; mkBar(allTeams, document.getElementById('oM').value, document.getElementById('oS').value, 'oprCanvas', ['oN', 'oNm', 'oC', 'oR', 'oprDet'], oUseCorr, false); }
+    function renderRank() { if (!allTeams.length) return; mkBar(allTeams, document.getElementById('rM').value, 'desc', 'rankCanvas', ['rN', 'rNm', 'rC', 'rR', 'rankDet'], rUseCorr, true); }
+
+    // ─── Picklist chart renders (remaining only) ───
+    function getRem() { const picked = pickedTeams(); return allTeams.filter(t => !picked.includes(t.teamNumber)); }
+    function renderPlBubble() { const rem = getRem(); if (!rem.length) return; mkBubble(rem, document.getElementById('plBX').value, document.getElementById('plBY').value, document.getElementById('plBR').value, 'role', 'plBubCanvas', ['plBdN', 'plBdNm', 'plBdC', 'plBdR', 'plBubDet'], false); }
+    function renderPlOPR() { const rem = getRem(); if (!rem.length) return; mkBar(rem, document.getElementById('plOM').value, document.getElementById('plOS').value, 'plOprCanvas', ['plON', 'plONm', 'plOC', 'plOR', 'plOprDet'], false, false); }
+    function renderPlRank() { const rem = getRem(); if (!rem.length) return; mkBar(rem, document.getElementById('plRM').value, 'desc', 'plRankCanvas', ['plRN', 'plRNm', 'plRC', 'plRR', 'plRankDet'], false, true); }
+  </script>
+</body>
+
+</html>
