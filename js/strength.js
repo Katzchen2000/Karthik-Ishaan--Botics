@@ -37,8 +37,8 @@ function getTeamScheduleStrength(teamNumber) {
 
   // Categorize: easy < 200, medium 200-400, hard > 400
   //might not take into account defense. Adjust thresholds as needed based on typical score distributions.
-  if (avgOppStrength < 200) return 'easy';
-  if (avgOppStrength <= 400) return 'medium';
+  if (avgOppStrength < 60) return 'easy';
+  if (avgOppStrength <= 200) return 'medium';
   return 'hard';
 }
 
@@ -56,21 +56,31 @@ function projectionForTeam(teamNumber) {
   const team = allTeams.find(t => t.teamNumber === teamNumber);
   if (!team || !tbaData || !tbaData.matches) return null;
 
+  const teamMatches = tbaData.matches.filter(m => {
+    const allTeams_ = [
+      ...m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', ''))),
+      ...m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', '')))
+    ];
+    return allTeams_.includes(teamNumber);
+  });
+  if (!teamMatches.length) return null;
+
+  const totalMatches = teamMatches.length;
   const teamStr = predCorr && cal.ready ? (tCorr(team) || 0) : (team.totalAvg || 0);
   let projectedWins = 0;
   let tiedMatches = 0;
   const schedule = getTeamScheduleStrength(teamNumber);
   const scheduleBias = schedule === 'easy' ? 0.05 : schedule === 'hard' ? -0.05 : 0;
 
-  tbaData.matches.forEach(m => {
+  teamMatches.forEach(m => {
     const isRed = m.alliances.red.team_keys.some(k => parseInt(k.replace('frc', '')) === teamNumber);
-    const isPlayed = (isRed ? m.alliances.red.score : m.alliances.blue.score) >= 0;
+    const score = isRed ? m.alliances.red.score : m.alliances.blue.score;
+    const oppScore = isRed ? m.alliances.blue.score : m.alliances.red.score;
+    const isPlayed = score >= 0;
 
     if (isPlayed) {
-      const tbaScore = isRed ? m.alliances.red.score : m.alliances.blue.score;
-      const oppScore = isRed ? m.alliances.blue.score : m.alliances.red.score;
-      if (tbaScore > oppScore) projectedWins++;
-      else if (tbaScore === oppScore) tiedMatches += 0.5;
+      if (score > oppScore) projectedWins++;
+      else if (score === oppScore) tiedMatches += 0.5;
     } else {
       const opponents = isRed
         ? m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', '')))
@@ -95,9 +105,11 @@ function projectionForTeam(teamNumber) {
     }
   });
 
+  const projected = Math.round((projectedWins + tiedMatches) * 10) / 10;
   return {
     teamNumber,
-    projectedWins: Math.round((projectedWins + tiedMatches) * 10) / 10,
+    projectedWins: Math.min(projected, totalMatches),
+    maxMatches: totalMatches,
     strength: teamStr,
     schedule
   };
@@ -158,6 +170,82 @@ function renderTeamRankPrediction(teamNumber) {
   `;
 }
 
+function buildSimulationMatchDetails(teamNumber) {
+  if (!tbaData || !tbaData.matches) return '<span style="color:var(--mut)">No schedule available</span>';
+  const team = allTeams.find(t => t.teamNumber === teamNumber);
+  if (!team) return '<span style="color:var(--mut)">Team data missing</span>';
+
+  const matches = tbaData.matches.filter(m => {
+    const allTeams_ = [
+      ...m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', ''))),
+      ...m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', '')))
+    ];
+    return allTeams_.includes(teamNumber);
+  });
+  if (!matches.length) return '<span style="color:var(--mut)">No qualify schedule</span>';
+
+  const rows = matches.map(m => {
+    const isRed = m.alliances.red.team_keys.some(k => parseInt(k.replace('frc', '')) === teamNumber);
+    const side = isRed ? 'Red' : 'Blue';
+    const opponents = isRed
+      ? m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', '')))
+      : m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', '')));
+    const teamScore = isRed ? m.alliances.red.score : m.alliances.blue.score;
+    const oppScore = isRed ? m.alliances.blue.score : m.alliances.red.score;
+    const played = teamScore >= 0 && oppScore >= 0;
+
+    const teamAlliancePred = [
+      ...m.alliances[isRed ? 'red' : 'blue'].team_keys.map(k => {
+        const t = allTeams.find(x => x.teamNumber === parseInt(k.replace('frc', '')));
+        return t ? teamAvgVal(t) : 0;
+      })
+    ].reduce((s, v) => s + v, 0);
+    const oppAlliancePred = [
+      ...m.alliances[isRed ? 'blue' : 'red'].team_keys.map(k => {
+        const t = allTeams.find(x => x.teamNumber === parseInt(k.replace('frc', '')));
+        return t ? teamAvgVal(t) : 0;
+      })
+    ].reduce((s, v) => s + v, 0);
+    const predLabel = teamAlliancePred > oppAlliancePred ? 'W' : teamAlliancePred < oppAlliancePred ? 'L' : 'T';
+
+    let result = '';
+    let scoreText = '';
+    if (played) {
+      const win = teamScore > oppScore ? 'W' : teamScore < oppScore ? 'L' : 'T';
+      result = `<strong style="color:${win === 'W' ? '#22c55e' : win === 'L' ? '#ef4444' : '#fbbf24'}">${win}</strong>`;
+      scoreText = `${teamScore}-${oppScore}`;
+    } else {
+      result = `<strong style="color:${predLabel === 'W' ? '#22c55e' : predLabel === 'L' ? '#ef4444' : '#fbbf24'}">${predLabel}</strong>`;
+      scoreText = `Pred ${Math.round(teamAlliancePred)}-${Math.round(oppAlliancePred)}`;
+    }
+
+    const oppList = opponents.map(opp => `<span style="font-weight:700;color:var(--acc)">${opp}</span>`).join(', ');
+    return `<tr style="border-bottom:1px solid rgba(148,163,184,.12)">
+      <td style="padding:6px 8px;font-size:11px">Q${m.match_number}</td>
+      <td style="padding:6px 8px;font-size:11px">${side}</td>
+      <td style="padding:6px 8px;font-size:11px">${oppList}</td>
+      <td style="padding:6px 8px;font-size:11px">${result}</td>
+      <td style="padding:6px 8px;font-size:11px">${scoreText}</td>
+    </tr>`;
+  });
+
+  return `<details style="font-size:11px;color:var(--acc);">
+    <summary style="cursor:pointer;font-weight:700">View qualify outcomes</summary>
+    <div style="margin-top:8px;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="text-align:left;color:var(--mut)">
+          <th style="padding:6px 8px">Match</th>
+          <th style="padding:6px 8px">Side</th>
+          <th style="padding:6px 8px">Opponents</th>
+          <th style="padding:6px 8px">Result</th>
+          <th style="padding:6px 8px">Score</th>
+        </tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+    </div>
+  </details>`;
+}
+
 function renderSimulation() {
   const body = document.getElementById('simBody');
   const badge = document.getElementById('simBadge');
@@ -172,7 +260,8 @@ function renderSimulation() {
       strength: teamAvgVal(t),
       schedule: projection?.schedule || 'unknown',
       projectedWins: projection?.projectedWins || 0,
-      predictedRank: pred?.predictedRank || allTeams.length
+      predictedRank: pred?.predictedRank || allTeams.length,
+      matchDetails: buildSimulationMatchDetails(t.teamNumber)
     };
   }).sort((a, b) => a.predictedRank - b.predictedRank || b.projectedWins - a.projectedWins || a.team.teamNumber - b.team.teamNumber);
 
@@ -186,6 +275,7 @@ function renderSimulation() {
       <td style="padding:8px 6px">${getScheduleStrengthLabel(row.schedule)}</td>
       <td style="padding:8px 6px">${row.projectedWins.toFixed(1)}</td>
       <td style="padding:8px 6px">#${row.predictedRank}</td>
+      <td style="padding:8px 6px;min-width:240px">${row.matchDetails}</td>
     </tr>
   `).join('');
 
