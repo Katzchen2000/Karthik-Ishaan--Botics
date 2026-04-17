@@ -2,6 +2,11 @@
 
 // Return numeric average opponent strength for a team's schedule (uses corrected values when available)
 function getTeamScheduleDifficultyScore(teamNumber) {
+  // Use cached schedule values when available
+  if (typeof scheduleCache !== 'undefined' && scheduleCache?.ready) {
+    return scheduleCache.raw[teamNumber] ?? null;
+  }
+
   if (!tbaData || !tbaData.matches) return null;
 
   const teamMatches = tbaData.matches.filter(m => {
@@ -39,6 +44,11 @@ function getTeamScheduleDifficultyScore(teamNumber) {
 
 // Normalize difficulty to a 0..scale range based on min/max across all teams (defaults to 0..100)
 function getScheduleDifficultyNormalized(teamNumber, scale = 100) {
+  // Use cached normalized values when available
+  if (typeof scheduleCache !== 'undefined' && scheduleCache?.ready && scheduleCache.scale === scale) {
+    return scheduleCache.norm[teamNumber] ?? null;
+  }
+
   const score = getTeamScheduleDifficultyScore(teamNumber);
   if (score === null) return null;
   const vals = allTeams.map(t => getTeamScheduleDifficultyScore(t.teamNumber)).filter(v => v !== null);
@@ -50,6 +60,61 @@ function getScheduleDifficultyNormalized(teamNumber, scale = 100) {
   return norm * scale;
 }
 
+// Schedule cache (raw and normalized). Recompute when TBA data, teams, or correction mode changes.
+let scheduleCache = { raw: {}, norm: {}, ready: false, scale: 100, lastMode: null };
+
+function recomputeScheduleCache(scale = 100) {
+  scheduleCache = { raw: {}, norm: {}, ready: false, scale };
+  if (!tbaData || !tbaData.matches || !allTeams.length) return;
+
+  // Build per-team match lists
+  const perTeamMatches = {};
+  tbaData.matches.forEach(m => {
+    const mn = m.match_number;
+    const reds = m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', '')));
+    const blues = m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', '')));
+    reds.concat(blues).forEach(tn => { if (!perTeamMatches[tn]) perTeamMatches[tn] = []; perTeamMatches[tn].push(m); });
+  });
+
+  const rawVals = [];
+  allTeams.forEach(t => {
+    const tn = t.teamNumber;
+    const teamMatches = perTeamMatches[tn] || [];
+    if (!teamMatches.length) { scheduleCache.raw[tn] = null; return; }
+    let oppSum = 0, oppCount = 0;
+    teamMatches.forEach(m => {
+      const isRed = m.alliances.red.team_keys.some(k => parseInt(k.replace('frc', '')) === tn);
+      const opponents = isRed ? m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', ''))) : m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', '')));
+      opponents.forEach(oppNum => {
+        const oppTeam = allTeams.find(x => x.teamNumber === oppNum);
+        if (oppTeam && oppTeam.totalAvg !== null) {
+          const val = (tbaCorrectionMode !== 'none' && cal.ready) ? (tCorr(oppTeam) || 0) : (oppTeam.totalAvg || 0);
+          oppSum += val;
+          oppCount++;
+        }
+      });
+    });
+    const raw = oppCount ? oppSum / oppCount : null;
+    scheduleCache.raw[tn] = raw;
+    if (raw !== null) rawVals.push(raw);
+  });
+
+  if (!rawVals.length) return;
+  const min = Math.min(...rawVals);
+  const max = Math.max(...rawVals);
+  allTeams.forEach(t => {
+    const raw = scheduleCache.raw[t.teamNumber];
+    if (raw === null) scheduleCache.norm[t.teamNumber] = null;
+    else if (min === max) scheduleCache.norm[t.teamNumber] = scale * 0.5;
+    else {
+      const norm = (Math.max(min, Math.min(max, raw)) - min) / (max - min);
+      scheduleCache.norm[t.teamNumber] = norm * scale;
+    }
+  });
+  scheduleCache.ready = true;
+  scheduleCache.lastMode = tbaCorrectionMode;
+}
+
 // Keep compatibility: convert numeric score into categorical label (deprecated)
 function getTeamScheduleStrength(teamNumber) {
   const avgOppStrength = getTeamScheduleDifficultyScore(teamNumber);
@@ -59,29 +124,16 @@ function getTeamScheduleStrength(teamNumber) {
   return 'hard';
 }
 
-// Color mapping helpers: produce a gradient color from green->yellow->red based on normalized score (0..scale)
-function hexToRgb(hex) {
-  if (!hex) return null;
-  const h = hex.replace('#', '');
-  return { r: parseInt(h.substring(0, 2), 16), g: parseInt(h.substring(2, 4), 16), b: parseInt(h.substring(4, 6), 16) };
-}
-function rgbToHex(r, g, b) {
-  const toHex = v => (v < 16 ? '0' : '') + v.toString(16);
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
+// Color mapping helpers: produce one of five discrete colors based on normalized score (0..scale)
 function scheduleColorFromNormalized(norm, scale = 100) {
   if (norm === null || norm === undefined || isNaN(norm)) return null;
   const t = Math.max(0, Math.min(1, norm / scale));
-  const green = hexToRgb('#22c55e');
-  const yellow = hexToRgb('#facc15');
-  const red = hexToRgb('#ef4444');
-  let start, end, f;
-  if (t <= 0.5) { start = green; end = yellow; f = t * 2; }
-  else { start = yellow; end = red; f = (t - 0.5) * 2; }
-  const r = Math.round(start.r + (end.r - start.r) * f);
-  const g = Math.round(start.g + (end.g - start.g) * f);
-  const b = Math.round(start.b + (end.b - start.b) * f);
-  return rgbToHex(r, g, b);
+  // Buckets: 0-20, 20-40, 40-60, 60-80, 80-100 (easiest -> hardest)
+  if (t <= 0.2) return '#16a34a'; // very easy (green-600)
+  if (t <= 0.4) return '#22c55e'; // easy (green-500)
+  if (t <= 0.6) return '#facc15'; // medium (yellow)
+  if (t <= 0.8) return '#fb923c'; // hard (orange)
+  return '#ef4444'; // very hard (red)
 }
 
 function getScheduleStrengthColor(strength) {
@@ -335,7 +387,6 @@ function renderSimulation() {
     </tr>
   `).join('');
 
-  if (chartInsts['simRank']) chartInsts['simRank'].destroy();
   const chartData = rows.map(r => ({
     x: r.strength,
     y: r.predictedRank,
@@ -349,7 +400,15 @@ function renderSimulation() {
     return legacy[d.schedule] || '#64748b';
   });
 
-  chartInsts['simRank'] = new Chart(canvas.getContext('2d'), {
+  const ctx = canvas.getContext('2d');
+  if (chartInsts['simRank']) {
+    chartInsts['simRank'].data.datasets[0].data = chartData;
+    chartInsts['simRank'].data.datasets[0].backgroundColor = bgColors;
+    chartInsts['simRank'].update();
+    return;
+  }
+
+  chartInsts['simRank'] = new Chart(ctx, {
     type: 'scatter',
     data: {
       datasets: [{

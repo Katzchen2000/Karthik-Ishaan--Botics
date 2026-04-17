@@ -133,6 +133,9 @@ function computeCalibration() {
       t.dprMulti = null;
     }
   });
+
+  // Recompute schedule cache (if available) since calibration and per-match scalars may affect corrected values
+  if (typeof recomputeScheduleCache === 'function') recomputeScheduleCache();
 }
 
 function computePerMatchScalars() {

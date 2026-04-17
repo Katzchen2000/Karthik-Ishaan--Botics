@@ -9,6 +9,7 @@ function setTbaCorrectionMode(mode) {
   const teamSel = document.getElementById('teamCorrModeSel');
   if (predSel) predSel.value = tbaCorrectionMode;
   if (teamSel) teamSel.value = tbaCorrectionMode;
+  if (typeof recomputeScheduleCache === 'function') recomputeScheduleCache();
   renderTeams();
   renderTimeline();
   runPred();
@@ -406,8 +407,6 @@ function renderMCHistogram() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  if (chartInsts['mcHistogram']) chartInsts['mcHistogram'].destroy();
-
   const redScores = lastMCRedScores.slice();
   const blueScores = lastMCBlueScores.slice();
 
@@ -432,6 +431,31 @@ function renderMCHistogram() {
   const bMean = blueScores.reduce((a, b) => a + b, 0) / N;
   const rStd = Math.sqrt(redScores.reduce((s, v) => s + (v - rMean) ** 2, 0) / N);
   const bStd = Math.sqrt(blueScores.reduce((s, v) => s + (v - bMean) ** 2, 0) / N);
+
+  // If chart exists, update data and stats and avoid recreating
+  if (chartInsts['mcHistogram']) {
+    chartInsts['mcHistogram'].data.labels = labels;
+    chartInsts['mcHistogram'].data.datasets[0].data = rHist;
+    chartInsts['mcHistogram'].data.datasets[1].data = bHist;
+    chartInsts['mcHistogram'].update();
+    const statsEl = document.getElementById('mcHistogramStats');
+    if (statsEl) {
+      statsEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+        <div style="background:rgba(239,68,68,0.1);padding:8px;border-radius:6px;border-left:3px solid #f87171">
+          <div style="font-size:10px;color:var(--mut);margin-bottom:2px">Red Distribution</div>
+          <div style="font-size:12px;font-weight:700;color:#f87171">μ=${Math.round(rMean)} pts</div>
+          <div style="font-size:9px;color:var(--dim)">σ=${Math.round(rStd*10)/10} | 68%: ${Math.round(rMean - rStd)}-${Math.round(rMean + rStd)}</div>
+        </div>
+        <div style="background:rgba(59,130,246,0.1);padding:8px;border-radius:6px;border-left:3px solid #60a5fa">
+          <div style="font-size:10px;color:var(--mut);margin-bottom:2px">Blue Distribution</div>
+          <div style="font-size:12px;font-weight:700;color:#60a5fa">μ=${Math.round(bMean)} pts</div>
+          <div style="font-size:9px;color:var(--dim)">σ=${Math.round(bStd*10)/10} | 68%: ${Math.round(bMean - bStd)}-${Math.round(bMean + bStd)}</div>
+        </div>
+      </div>`;
+    }
+    return;
+  }
 
   chartInsts['mcHistogram'] = new Chart(ctx, {
     type: 'bar',

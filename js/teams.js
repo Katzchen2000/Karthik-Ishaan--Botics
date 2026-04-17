@@ -10,10 +10,8 @@ function setTView(mode) {
 function debugPrintSorted() {
   try {
     const rows = getFilteredTeams().map(t => ({ teamNumber: t.teamNumber, name: t.teamName, val: getTeamVal(t, sortKey) }));
-    console.log('[sort] debugPrintSorted', { sortKey, sortDir, rows });
     return rows;
   } catch (e) {
-    console.error('[sort] debugPrintSorted error', e);
     return null;
   }
 }
@@ -35,7 +33,6 @@ function setSort(k) {
   const prevDir = sortDir;
   if (sortKey === k) sortDir *= -1;
   else { sortKey = k; sortDir = -1; }
-  console.log('[sort] setSort', { requested: k, prevKey, prevDir, newKey: sortKey, newDir: sortDir });
   document.querySelectorAll('.sort-controls .sbtn').forEach(b => {
     b.classList.remove('on');
     b.textContent = b.textContent.replace(/ [\u2191\u2193]$/, '');
@@ -68,7 +65,6 @@ function getFilteredTeams() {
   let a = allTeams.filter(t => !q || String(t.teamNumber).includes(q) || t.teamName.toLowerCase().includes(q));
   try {
     const samplePre = a.slice(0, 8).map(t => ({ teamNumber: t.teamNumber, val: getTeamVal(t, sortKey) }));
-    console.log('[sort] preSort sample', { sortKey, sortDir, samplePre });
   } catch (e) { console.debug('[sort] preSort sample error', e); }
   const sorted = [...a].sort((a, b) => {
     let av = getTeamVal(a, sortKey);
@@ -79,7 +75,6 @@ function getFilteredTeams() {
   });
   try {
     const samplePost = sorted.slice(0, 8).map(t => ({ teamNumber: t.teamNumber, val: getTeamVal(t, sortKey) }));
-    console.log('[sort] postSort sample', { sortKey, sortDir, samplePost });
   } catch (e) { console.debug('[sort] postSort sample error', e); }
   return sorted;
 }

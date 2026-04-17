@@ -10,6 +10,7 @@ function handleCSV(e) {
       rawRows = res.data;
       allTeams = buildAllTeams(rawRows);
       plOrder = allTeams.map(t => t.teamNumber);
+      if (typeof recomputeScheduleCache === 'function') recomputeScheduleCache();
       goto('teams');
       openTBAModal();
     },
@@ -34,6 +35,7 @@ window.addEventListener('DOMContentLoaded', () => {
           rawRows = res.data;
           allTeams = buildAllTeams(rawRows);
           plOrder = allTeams.map(t => t.teamNumber);
+            if (typeof recomputeScheduleCache === 'function') recomputeScheduleCache();
           goto('teams');
           openTBAModal();
         }
