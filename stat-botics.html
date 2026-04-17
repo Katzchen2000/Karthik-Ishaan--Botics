@@ -19,6 +19,7 @@
     <button class="ntab" id="tab-picklist" onclick="goto('picklist')">Picklist</button>
     <button class="ntab" id="tab-charts" onclick="goto('charts')">Charts</button>
     <button class="ntab" id="tab-rankings" onclick="goto('rankings')">Rankings</button>
+    <button class="ntab" id="tab-timeline" onclick="goto('timeline')">Team Timeline</button>
     <div class="nright">
       <button class="bsm" id="tbaBtn" onclick="openTBAModal()">Connect TBA</button>
       <label class="bsm" style="cursor:pointer">
@@ -198,6 +199,20 @@
       </div>
       <div class="pbk" id="predBk"></div>
       <div class="mcnote" id="mcNote"></div>
+      <div id="mcVisualizations" style="display:none;margin-top:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--dim);margin-bottom:10px">Monte Carlo Simulation (10,000 runs)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Score Distribution</div>
+            <div class="bwrap" style="height:220px"><canvas id="mcHistogramCanvas" width="400" height="220"></canvas></div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Win Probability</div>
+            <div class="bwrap" style="height:220px;display:flex;justify-content:center;align-items:center"><canvas id="mcWinGaugeCanvas" width="220" height="220"></canvas></div>
+          </div>
+        </div>
+        <div id="mcHistogramStats" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:10px"></div>
+      </div>
     </div>
   </div>
 
@@ -514,6 +529,28 @@
     </div>
   </div>
 
+  <!-- TEAM TIMELINE -->
+  <div id="pgTimeline" class="page">
+    <div class="phdr">
+      <h2>Team Timeline</h2>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;color:var(--dim);display:block;margin-bottom:4px;font-weight:700">Select a team to view match-by-match performance</label>
+      <select id="timelineTeamSelect" class="tsel" onchange="selectTeamTimeline()" style="width:100%;max-width:300px">
+        <option value="">— Select a team —</option>
+      </select>
+    </div>
+
+    <div id="timelineStats"></div>
+
+    <div id="timelineChartContainer" style="display:none;margin-top:16px">
+      <div style="font-size:11px;color:var(--dim);margin-bottom:8px;font-weight:700">Performance Trend</div>
+      <div class="bwrap" style="height:300px;margin-bottom:16px"><canvas id="timelineCanvas"></canvas></div>
+    </div>
+
+    <div id="timelineTable" style="margin-top:16px;overflow-x:auto"></div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="js/app.js"></script>
@@ -525,6 +562,8 @@
 <script src="js/predictor.js"></script>
 <script src="js/picklist.js"></script>
 <script src="js/charts.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/strength.js"></script>
 </body>
 
 </html>

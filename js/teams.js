@@ -86,7 +86,7 @@ function renderTeams() {
     return `
       <tr class="cl" onclick="toggleDet(${t.teamNumber})">
         <td class="tnum">${t.teamNumber}</td>
-        <td style="font-weight:500">${t.teamName}</td>
+        <td style="font-weight:500">${t.teamName} ${renderTeamScheduleStrengthBadge(t.teamNumber)}</td>
         <td><span class="badge">${t.validCount}</span></td>
         <td class="sv ${sc(au, vC ? 12 : 10, 4)}">${fmt(au)}</td>
         <td class="sv ${sc(te, vC ? 48 : 40, 15)}">${fmt(te)}</td>
@@ -116,6 +116,9 @@ function buildDetHTML(t) {
   const corr = cal.ready ? tCorr(t) : null;
   const ts = cal.teamScalars?.[t.teamNumber];
   const mRows = t.history.map(m => `<tr><td>M${m.match}</td><td>${fmt(m.auto, 0)}</td><td>${fmt(m.teleop, 0)}</td><td>${fmt(m.endgame, 0)}</td><td style="color:var(--acc);font-weight:700">${fmt(m.total, 0)}</td><td>${m.climb && !isNA(m.climb) ? (m.climb.toLowerCase().includes('success') ? 'S' : m.climb.toLowerCase().includes('fail') ? 'F' : m.climb) : '—'}</td></tr>`).join('');
+
+  const scheduleStrengthHtml = renderTeamScheduleStrengthBadge(t.teamNumber) ? `<div class="scard" style="--cc:#f59e0b"><div class="sclbl">Schedule</div><div class="scval">${getScheduleStrengthLabel(getTeamScheduleStrength(t.teamNumber)) || '—'}</div><div class="scsub">Average opponent strength</div></div>` : '';
+
   return `<div class="dcards">
     <div class="scard" style="--cc:#00d4aa"><div class="sclbl">Total Avg</div><div class="scval">${fmt(t.totalAvg)}</div><div class="scsub">Min ${fmt(t.totalMin, 0)} · Max ${fmt(t.totalMax, 0)} · σ ${fmt(t.totalStd, 1)}${corr !== null ? `<br>Corr <span class="corrval">${fmt(corr)}</span><span class="corrtag">×${ts?.scalar.toFixed(2) || '?'} ${ts?.fallback ? '(global)' : '(team)'}</span>` : ''}</div></div>
     <div class="scard" style="--cc:#6366f1"><div class="sclbl">Auto Avg</div><div class="scval">${fmt(t.autoAvg)}</div><div class="scsub">Min ${fmt(t.autoMin, 0)} · Max ${fmt(t.autoMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.autoAvg, t.teamNumber))}</span>` : ''}</div></div>
@@ -123,9 +126,11 @@ function buildDetHTML(t) {
     <div class="scard" style="--cc:#f59e0b"><div class="sclbl">Endgame Avg</div><div class="scval">${fmt(t.endgameAvg)}</div><div class="scsub">Min ${fmt(t.endgameMin, 0)} · Max ${fmt(t.endgameMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.endgameAvg, t.teamNumber))}</span>` : ''}</div></div>
     <div class="scard" style="--cc:#10b981"><div class="sclbl">Climb</div><div class="scval">${t.climbRate !== null ? Math.round(t.climbRate * 100) + '%' : '—'}</div><div class="scsub">${t.climbSuccess}/${t.climbAttempts} attempts</div></div>
     <div class="scard" style="--cc:#ef4444"><div class="sclbl">DPR (Defense)</div><div class="scval">${t.dprMulti !== null && t.dprMulti < 1 ? t.dprMulti.toFixed(2) + '×' : '—'}</div><div class="scsub">${t.dprPoints !== null && t.dprPoints > 0 ? '-' + Math.abs(Math.round(t.dprPoints)) + ' pts limit (avg)' : ''}</div></div>
+    ${scheduleStrengthHtml}
   </div>
   <div class="dgrid">
     <div class="sec"><div class="sttl">Score/Match</div><div class="cwrap"><canvas id="dc-${t.teamNumber}"></canvas></div></div>
+    <div class="sec"><div class="sttl">Rank Prediction</div>${renderTeamRankPrediction(t.teamNumber) || '<span style="font-size:11px;color:var(--mut)">No TBA data</span>'}</div>
     <div class="sec" style="overflow:auto;max-height:190px"><div class="sttl">Match Log</div><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="text-align:left;color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr)">M</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Au</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Te</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">En</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Tot</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Cl</th></tr></thead><tbody>${mRows}</tbody></table></div>
     <div class="sec"><div class="sttl">Roles</div>${re.map(([role, cnt]) => `<div class="rrow"><span style="font-size:10px;min-width:80px">${rt(role)}</span><div class="rbg"><div class="rfill" style="width:${Math.round(cnt / mxR * 100)}%;background:${roleColor(role)}"></div></div><span style="font-size:10px;color:var(--mut)">${cnt}</span></div>`).join('') || '<span style="font-size:11px;color:var(--mut)">No data</span>'}</div>
     <div class="sec"><div class="sttl">Scout Info</div>

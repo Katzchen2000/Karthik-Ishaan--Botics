@@ -329,4 +329,195 @@ function runPred() {
       el.style.borderColor = '';
     }
   }));
+
+  if (useMC && (R.length || B.length)) {
+    setTimeout(() => renderMCVisualizations(), 50);
+  }
+}
+
+function renderMCVisualizations() {
+  const mcVizEl = document.getElementById('mcVisualizations');
+  if (!mcVizEl) return;
+  mcVizEl.style.display = useMC ? 'block' : 'none';
+
+  const mcHChart = document.getElementById('mcHistogramCanvas');
+  if (mcHChart) renderMCHistogram();
+
+  const mcGauge = document.getElementById('mcWinGaugeCanvas');
+  if (mcGauge) renderMCWinGauge();
+}
+
+function renderMCHistogram() {
+  if (!useMC) return;
+  const canvas = document.getElementById('mcHistogramCanvas');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  if (chartInsts['mcHistogram']) chartInsts['mcHistogram'].destroy();
+
+  const redScores = [];
+  const blueScores = [];
+  const R = getSlots('red');
+  const B = getSlots('blue');
+
+  if (!R.length || !B.length) return;
+
+  const primaryVal = t => predMode === 'max' ? teamMaxVal(t) : predMode === 'min' ? teamMinVal(t) : teamAvgVal(t);
+  const defMult = (alLabel, si) => !!predDef[`${alLabel}${si}`] ? 0.5 : 1;
+  const mkArr = (slots, alLabel) => slots.map(({ t, i }) => ({
+    mean: primaryVal(t) * defMult(alLabel, i),
+    std: (teamStdVal(t) || 3) * defMult(alLabel, i),
+    skew: teamSkew(t),
+    min: 0
+  }));
+
+  const rArr = mkArr(R, 'red');
+  const bArr = mkArr(B, 'blue');
+  const N = 5000;
+
+  for (let j = 0; j < N; j++) {
+    let rs = 0, bs = 0;
+    for (let k = 0; k < rArr.length; k++) {
+      const a = rArr[k];
+      rs += Math.max(a.min, a.skew !== 0 ? skewSamp(a.mean, a.std, a.skew) : normSamp(a.mean, a.std));
+    }
+    for (let k = 0; k < bArr.length; k++) {
+      const a = bArr[k];
+      bs += Math.max(a.min, a.skew !== 0 ? skewSamp(a.mean, a.std, a.skew) : normSamp(a.mean, a.std));
+    }
+    redScores.push(Math.round(rs));
+    blueScores.push(Math.round(bs));
+  }
+
+  const binSize = 10;
+  const maxScore = Math.max(...redScores, ...blueScores);
+  const numBins = Math.ceil(maxScore / binSize);
+  const rHist = Array(numBins).fill(0);
+  const bHist = Array(numBins).fill(0);
+  const labels = [];
+
+  for (let i = 0; i < numBins; i++) {
+    labels.push(`${i * binSize}-${(i + 1) * binSize}`);
+  }
+
+  redScores.forEach(s => { const bin = Math.min(Math.floor(s / binSize), numBins - 1); rHist[bin]++; });
+  blueScores.forEach(s => { const bin = Math.min(Math.floor(s / binSize), numBins - 1); bHist[bin]++; });
+
+  const rMean = redScores.reduce((a, b) => a + b) / N;
+  const bMean = blueScores.reduce((a, b) => a + b) / N;
+  const rStd = Math.sqrt(redScores.reduce((s, v) => s + (v - rMean) ** 2, 0) / N);
+  const bStd = Math.sqrt(blueScores.reduce((s, v) => s + (v - bMean) ** 2, 0) / N);
+
+  chartInsts['mcHistogram'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Red', data: rHist, backgroundColor: 'rgba(239,68,68,0.6)', borderColor: '#f87171', borderWidth: 1 },
+        { label: 'Blue', data: bHist, backgroundColor: 'rgba(59,130,246,0.6)', borderColor: '#60a5fa', borderWidth: 1 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font: { size: 10 } } },
+        tooltip: {
+          callbacks: {
+            afterLabel: (context) => {
+              const bin = context.dataIndex;
+              return `Range: ${bin * binSize}-${(bin + 1) * binSize} pts`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(30,58,95,.3)' } },
+        y: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(30,58,95,.3)' }, title: { display: true, text: 'Frequency', color: '#64748b' } }
+      }
+    }
+  });
+
+  const statsEl = document.getElementById('mcHistogramStats');
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+        <div style="background:rgba(239,68,68,0.1);padding:8px;border-radius:6px;border-left:3px solid #f87171">
+          <div style="font-size:10px;color:var(--mut);margin-bottom:2px">Red Distribution</div>
+          <div style="font-size:12px;font-weight:700;color:#f87171">μ=${Math.round(rMean)} pts</div>
+          <div style="font-size:9px;color:var(--dim)">σ=${Math.round(rStd*10)/10} | 68%: ${Math.round(rMean - rStd)}-${Math.round(rMean + rStd)}</div>
+        </div>
+        <div style="background:rgba(59,130,246,0.1);padding:8px;border-radius:6px;border-left:3px solid #60a5fa">
+          <div style="font-size:10px;color:var(--mut);margin-bottom:2px">Blue Distribution</div>
+          <div style="font-size:12px;font-weight:700;color:#60a5fa">μ=${Math.round(bMean)} pts</div>
+          <div style="font-size:9px;color:var(--dim)">σ=${Math.round(bStd*10)/10} | 68%: ${Math.round(bMean - bStd)}-${Math.round(bMean + bStd)}</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function renderMCWinGauge() {
+  if (!useMC) return;
+  const canvas = document.getElementById('mcWinGaugeCanvas');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const R = getSlots('red');
+  const B = getSlots('blue');
+  if (!R.length || !B.length) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const centerX = w / 2;
+  const centerY = h / 2;
+  const radius = Math.min(w, h) / 2 - 20;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.save();
+
+  const winPct = parseInt(document.getElementById('rWin')?.textContent || '50');
+  const blueWinPct = 100 - winPct;
+  const redAngle = (winPct / 100) * Math.PI * 2;
+
+  ctx.fillStyle = '#f87171';
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.arc(centerX, centerY, radius, 0, redAngle);
+  ctx.lineTo(centerX, centerY);
+  ctx.fill();
+
+  ctx.fillStyle = '#60a5fa';
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.arc(centerX, centerY, radius, redAngle, Math.PI * 2);
+  ctx.lineTo(centerX, centerY);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.fillStyle = '#07101e';
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#f87171';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(winPct + '%', centerX, centerY - 5);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '10px sans-serif';
+  ctx.fillText('Red Win', centerX, centerY + 12);
+
+  ctx.restore();
 }

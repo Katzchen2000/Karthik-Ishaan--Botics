@@ -1643,3 +1643,88 @@ nav {
   background: var(--bdr);
   border-radius: 3px;
 }
+
+/* Monte Carlo Visualizations */
+#mcVisualizations {
+  background: var(--surf2);
+  border: 1px solid var(--bdr);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+#mcHistogramCanvas,
+#mcWinGaugeCanvas {
+  display: block;
+  max-width: 100%;
+}
+
+/* Team Timeline */
+.tstat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tstat-card {
+  background: var(--surf2);
+  border: 1px solid var(--bdr);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tstat-label {
+  font-size: 9px;
+  color: var(--mut);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.tstat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--acc);
+}
+
+.ttbl {
+  width: 100%;
+  font-size: 11px;
+  border-collapse: collapse;
+  background: var(--surf2);
+  border: 1px solid var(--bdr);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ttbl thead {
+  background: var(--surf3);
+}
+
+.ttbl th {
+  padding: 8px;
+  text-align: left;
+  color: var(--mut);
+  font-weight: 700;
+  border-bottom: 1px solid var(--bdr);
+  font-size: 9px;
+}
+
+.ttbl td {
+  padding: 8px;
+  border-bottom: 1px solid var(--bdr2);
+  color: var(--txt);
+}
+
+.ttbl td.ttbl-match {
+  font-weight: 700;
+  color: var(--acc);
+  min-width: 40px;
+}
+
+.ttbl tbody tr:hover {
+  background: var(--surf);
+}

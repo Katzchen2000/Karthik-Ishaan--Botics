@@ -32,7 +32,7 @@ const RCOL = { Cycler: 'rgba(129,140,248,.8)', Scorer: 'rgba(56,189,248,.8)', Fe
 const DCOL = { VeryGood: 'rgba(16,185,129,.8)', Good: 'rgba(14,165,233,.8)', Decent: 'rgba(245,158,11,.8)', Bad: 'rgba(239,68,68,.8)', null: 'rgba(100,116,139,.7)' };
 const ALBL = { autoAvg: 'Auto Avg', teleopAvg: 'Teleop Avg', endgameAvg: 'Endgame Avg', totalAvg: 'Total Avg', climbRate: 'Climb %', totalStd: 'Std Dev σ', validCount: 'Matches', dprMulti: 'DPR Limit' };
 
-const PGMAP = { teams: 'pgTeams', matches: 'pgMatches', predictor: 'pgPredictor', picklist: 'pgPicklist', charts: 'pgCharts', rankings: 'pgRankings', landing: 'pgLanding' };
+const PGMAP = { teams: 'pgTeams', matches: 'pgMatches', predictor: 'pgPredictor', picklist: 'pgPicklist', charts: 'pgCharts', rankings: 'pgRankings', timeline: 'pgTimeline' };
 
 function goto(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
@@ -45,6 +45,7 @@ function goto(id) {
   if (id === 'picklist') renderPicklist();
   if (id === 'charts') { renderBubble(); renderOPR(); renderRank(); renderDeviation(); }
   if (id === 'rankings') renderRankings();
+  if (id === 'timeline') renderTimeline();
 }
 
 function jumpTeam(tn) {

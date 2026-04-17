@@ -155,19 +155,88 @@ function buildMatchScalarsTable(matchNum, side, teams) {
   if (!cal.ready) return `<div style="font-size:11px;color:var(--mut);padding:8px">Calibration not ready</div>`;
 
   const rows = teams.map(tn => {
+    const t = allTeams.find(x => x.teamNumber === tn);
     const ts = cal.teamScalars[tn];
-    if (!ts) return null;
+    if (!t || !ts) return null;
+
+    const raw = t.totalAvg || 0;
+    const corrected = raw * ts.scalar;
     const fb = ts.fallback ? 'Global' : 'Team';
     const r2Str = ts.r2 !== null ? ts.r2.toFixed(3) : '—';
-    return `<tr><td class="tn">${tn}</td><td>${ts.scalar.toFixed(3)}×</td><td>${ts.n} pts</td><td>${r2Str}</td><td>${fb}</td></tr>`;
+    const corrColor = corrected > 0 ? 'var(--acc)' : 'var(--mut)';
+
+    return `<tr>
+      <td class="tn">${tn}</td>
+      <td style="color:var(--dim)">${fmt(raw)}</td>
+      <td style="font-weight:700">${ts.scalar.toFixed(3)}×</td>
+      <td style="color:${corrColor};font-weight:700">${fmt(corrected)}</td>
+      <td style="font-size:9px">${ts.n} pts</td>
+      <td>${r2Str}</td>
+      <td style="font-size:9px">${fb}</td>
+    </tr>`;
   }).filter(Boolean);
 
   if (!rows.length) return `<div style="font-size:11px;color:var(--mut);padding:8px">No scalars available</div>`;
 
   return `<table class="match-detail-table">
-    <thead><tr><th>Team</th><th>Scalar</th><th>Data Pts</th><th>R²</th><th>Type</th></tr></thead>
+    <thead><tr><th>Team</th><th>Scouted</th><th>Scalar</th><th>Corrected</th><th>Data</th><th>R²</th><th>Type</th></tr></thead>
     <tbody>${rows.join('')}</tbody>
   </table>`;
+}
+
+function buildAllianceCalcBreakdown(matchNum, side, teams) {
+  if (!cal.ready || !tbaData) return '';
+
+  const match = tbaData.matches.find(m => m.match_number === matchNum);
+  if (!match) return '';
+
+  const isSameAlliance = (side === 'red' && match.alliances.red.team_keys.some(k => {
+    const tn = parseInt(k.replace('frc', ''));
+    return teams.includes(tn);
+  })) || (side === 'blue' && match.alliances.blue.team_keys.some(k => {
+    const tn = parseInt(k.replace('frc', ''));
+    return teams.includes(tn);
+  }));
+
+  if (!isSameAlliance) return '';
+
+  const tbaScore = side === 'red' ? match.alliances.red.score : match.alliances.blue.score;
+  if (tbaScore === null || tbaScore < 0) return '';
+
+  let rawTotal = 0, correctedTotal = 0;
+  teams.forEach(tn => {
+    const t = allTeams.find(x => x.teamNumber === tn);
+    if (t) {
+      rawTotal += t.totalAvg || 0;
+      const corrected = (t.totalAvg || 0) * (cal.teamScalars[tn]?.scalar || 1);
+      correctedTotal += corrected;
+    }
+  });
+
+  const error = Math.abs(correctedTotal - tbaScore);
+  const errorColor = error < 5 ? 'var(--grn)' : error < 15 ? 'var(--yel)' : 'var(--red)';
+
+  return `<div style="background:var(--surf2);padding:10px;border-radius:6px;margin-top:8px;font-size:10px">
+    <div style="margin-bottom:6px;color:var(--dim);font-weight:700">${side === 'red' ? 'Red' : 'Blue'} Alliance Correction:</div>
+    <div style="display:grid;gap:8px">
+      <div style="display:flex;justify-content:space-between">
+        <span>Raw scouted total:</span>
+        <span style="font-weight:700;color:var(--mut)">${fmt(rawTotal)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span>Per-team corrected:</span>
+        <span style="font-weight:700;color:var(--acc)">${fmt(correctedTotal)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--bdr);padding-top:6px">
+        <span>TBA actual score:</span>
+        <span style="font-weight:700;color:#0ea5e9">${tbaScore}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;color:${errorColor};font-weight:700">
+        <span>Error:</span>
+        <span>${error < 1 ? '✓ Perfect!' : fmt(error) + ' pts'}</span>
+      </div>
+    </div>
+  </div>`;
 }
 
 function toggleMatchDetails(matchNum) {
@@ -214,10 +283,10 @@ function buildMCard(m) {
       </div>
     </div>
     <div class="match-detail-section">
-      <div class="match-detail-title">Computed Match Scalars</div>
+      <div class="match-detail-title">Scalar Correction & Error Analysis</div>
       <div class="match-detail-content" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div><div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Red Alliance</div>${buildMatchScalarsTable(m.num, 'red', m.red)}</div>
-        <div><div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Blue Alliance</div>${buildMatchScalarsTable(m.num, 'blue', m.blue)}</div>
+        <div><div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Red Alliance</div>${buildMatchScalarsTable(m.num, 'red', m.red)}${buildAllianceCalcBreakdown(m.num, 'red', m.red)}</div>
+        <div><div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Blue Alliance</div>${buildMatchScalarsTable(m.num, 'blue', m.blue)}${buildAllianceCalcBreakdown(m.num, 'blue', m.blue)}</div>
       </div>
     </div>
   </div>` : '';
