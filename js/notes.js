@@ -133,4 +133,3 @@ function importNotes(e) {
 
 // ensure notes are loaded when script loads
 loadTeamNotesFromStorage();
-*** End Patch

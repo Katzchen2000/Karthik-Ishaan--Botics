@@ -76,7 +76,6 @@
       <button class="sbtn on" id="tv-avg" onclick="setTView('avg')">Average</button>
       <button class="sbtn" id="tv-max" onclick="setTView('max')">Max</button>
       <button class="sbtn" id="tv-min" onclick="setTView('min')">Min</button>
-      <button class="sbtn" id="tv-corr" onclick="setTView('corr')">TBA Corrected</button>
     </div>
     <div class="sbar">
       <select id="teamCorrModeSel" class="tsel" style="width:auto; margin:0; padding:4px 8px; font-size:11px" onchange="teamCorrModeChanged()">
@@ -237,11 +236,10 @@
     </div>
     <div class="bwrap" style="height:320px;margin-bottom:16px"><canvas id="simRankCanvas"></canvas></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-      <div style="font-size:11px;color:var(--mut);font-weight:700">Schedule Strength Legend:</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--grn);border-radius:50%"></span>Easy</span>
-        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--yel);border-radius:50%"></span>Medium</span>
-        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--red);border-radius:50%"></span>Hard</span>
+      <div style="font-size:11px;color:var(--mut);font-weight:700">Schedule Strength (0–100)</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:160px;height:12px;border-radius:6px;background:linear-gradient(90deg,#22c55e,#facc15,#ef4444);border:1px solid rgba(0,0,0,0.06)"></div>
+        <div style="font-size:11px;color:var(--mut);display:flex;gap:8px;width:80px;justify-content:space-between"><span>0</span><span>50</span><span>100</span></div>
       </div>
     </div>
     <div style="overflow-x:auto">

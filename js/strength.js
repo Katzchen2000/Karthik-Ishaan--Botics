@@ -1,6 +1,7 @@
 // Schedule strength and rank prediction
 
-function getTeamScheduleStrength(teamNumber) {
+// Return numeric average opponent strength for a team's schedule (uses corrected values when available)
+function getTeamScheduleDifficultyScore(teamNumber) {
   if (!tbaData || !tbaData.matches) return null;
 
   const teamMatches = tbaData.matches.filter(m => {
@@ -33,21 +34,69 @@ function getTeamScheduleStrength(teamNumber) {
   });
 
   if (!count) return null;
-  const avgOppStrength = opponentStrength / count;
+  return opponentStrength / count;
+}
 
-  // Categorize: easy < 200, medium 200-400, hard > 400
-  //might not take into account defense. Adjust thresholds as needed based on typical score distributions.
+// Normalize difficulty to a 0..scale range based on min/max across all teams (defaults to 0..100)
+function getScheduleDifficultyNormalized(teamNumber, scale = 100) {
+  const score = getTeamScheduleDifficultyScore(teamNumber);
+  if (score === null) return null;
+  const vals = allTeams.map(t => getTeamScheduleDifficultyScore(t.teamNumber)).filter(v => v !== null);
+  if (!vals.length) return null;
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  if (min === max) return scale * 0.5;
+  const norm = (Math.max(min, Math.min(max, score)) - min) / (max - min);
+  return norm * scale;
+}
+
+// Keep compatibility: convert numeric score into categorical label (deprecated)
+function getTeamScheduleStrength(teamNumber) {
+  const avgOppStrength = getTeamScheduleDifficultyScore(teamNumber);
+  if (avgOppStrength === null) return null;
   if (avgOppStrength < 60) return 'easy';
   if (avgOppStrength <= 200) return 'medium';
   return 'hard';
 }
 
+// Color mapping helpers: produce a gradient color from green->yellow->red based on normalized score (0..scale)
+function hexToRgb(hex) {
+  if (!hex) return null;
+  const h = hex.replace('#', '');
+  return { r: parseInt(h.substring(0, 2), 16), g: parseInt(h.substring(2, 4), 16), b: parseInt(h.substring(4, 6), 16) };
+}
+function rgbToHex(r, g, b) {
+  const toHex = v => (v < 16 ? '0' : '') + v.toString(16);
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+function scheduleColorFromNormalized(norm, scale = 100) {
+  if (norm === null || norm === undefined || isNaN(norm)) return null;
+  const t = Math.max(0, Math.min(1, norm / scale));
+  const green = hexToRgb('#22c55e');
+  const yellow = hexToRgb('#facc15');
+  const red = hexToRgb('#ef4444');
+  let start, end, f;
+  if (t <= 0.5) { start = green; end = yellow; f = t * 2; }
+  else { start = yellow; end = red; f = (t - 0.5) * 2; }
+  const r = Math.round(start.r + (end.r - start.r) * f);
+  const g = Math.round(start.g + (end.g - start.g) * f);
+  const b = Math.round(start.b + (end.b - start.b) * f);
+  return rgbToHex(r, g, b);
+}
+
 function getScheduleStrengthColor(strength) {
+  // If passed a numeric normalized score, compute a gradient color
+  if (typeof strength === 'number') {
+    const c = scheduleColorFromNormalized(strength);
+    return c || 'var(--mut)';
+  }
   const colors = { easy: 'var(--grn)', medium: 'var(--yel)', hard: 'var(--red)' };
   return colors[strength] || 'var(--mut)';
 }
 
 function getScheduleStrengthLabel(strength) {
+  // Numeric label preferred: round normalized score
+  if (typeof strength === 'number') return `${Math.round(strength)}`;
   const labels = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
   return labels[strength] || 'Unknown';
 }
@@ -69,8 +118,9 @@ function projectionForTeam(teamNumber) {
   const teamStr = (tbaCorrectionMode !== 'none' && cal.ready) ? (tCorr(team) || 0) : (team.totalAvg || 0);
   let projectedWins = 0;
   let tiedMatches = 0;
-  const schedule = getTeamScheduleStrength(teamNumber);
-  const scheduleBias = schedule === 'easy' ? 0.05 : schedule === 'hard' ? -0.05 : 0;
+  const scheduleScore = getScheduleDifficultyNormalized(teamNumber);
+  const schedule = scheduleScore; // normalized numeric score 0..100 (may be null)
+  const scheduleBias = scheduleScore === null ? 0 : ((50 - scheduleScore) / 50) * 0.05;
 
   teamMatches.forEach(m => {
     const isRed = m.alliances.red.team_keys.some(k => parseInt(k.replace('frc', '')) === teamNumber);
@@ -139,12 +189,10 @@ function predictTeamRank(teamNumber) {
 }
 
 function renderTeamScheduleStrengthBadge(teamNumber) {
-  const strength = getTeamScheduleStrength(teamNumber);
-  if (!strength) return '';
-
-  const color = getScheduleStrengthColor(strength);
-  const label = getScheduleStrengthLabel(strength);
-
+  const score = getScheduleDifficultyNormalized(teamNumber);
+  if (score === null) return '';
+  const color = getScheduleStrengthColor(score);
+  const label = getScheduleStrengthLabel(score);
   return `<span class="schedule-strength" style="background:${color}15;color:${color};border:1px solid ${color}30;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600">${label}</span>`;
 }
 
@@ -266,7 +314,7 @@ function renderSimulation() {
     return {
       team: t,
       strength: teamAvgVal(t),
-      schedule: projection?.schedule || 'unknown',
+      schedule: projection?.schedule ?? null,
       projectedWins: projection?.projectedWins || 0,
       predictedRank: pred?.predictedRank || allTeams.length,
       matchDetails: buildSimulationMatchDetails(t.teamNumber)
@@ -280,7 +328,7 @@ function renderSimulation() {
       <td style="padding:8px 6px">${row.team.teamNumber}</td>
       <td style="padding:8px 6px">${row.team.teamName.slice(0, 24)}</td>
       <td style="padding:8px 6px">${Math.round(row.strength)}</td>
-      <td style="padding:8px 6px">${getScheduleStrengthLabel(row.schedule)}</td>
+      <td style="padding:8px 6px">${row.schedule !== null ? getScheduleStrengthLabel(row.schedule) : '—'}</td>
       <td style="padding:8px 6px">${row.projectedWins.toFixed(1)}</td>
       <td style="padding:8px 6px">#${row.predictedRank}</td>
       <td style="padding:8px 6px;min-width:240px">${row.matchDetails}</td>
@@ -295,7 +343,11 @@ function renderSimulation() {
     schedule: r.schedule,
     wins: r.projectedWins
   }));
-  const colorMap = { easy: '#22c55e', medium: '#facc15', hard: '#ef4444', unknown: '#64748b' };
+  const bgColors = chartData.map(d => {
+    if (typeof d.schedule === 'number') return scheduleColorFromNormalized(d.schedule) || '#64748b';
+    const legacy = { easy: '#22c55e', medium: '#facc15', hard: '#ef4444' };
+    return legacy[d.schedule] || '#64748b';
+  });
 
   chartInsts['simRank'] = new Chart(canvas.getContext('2d'), {
     type: 'scatter',
@@ -303,7 +355,7 @@ function renderSimulation() {
       datasets: [{
         label: 'Team projections',
         data: chartData,
-        backgroundColor: chartData.map(d => colorMap[d.schedule] || colorMap.unknown),
+        backgroundColor: bgColors,
         borderWidth: 0,
         pointRadius: 6
       }]
@@ -317,7 +369,7 @@ function renderSimulation() {
           callbacks: {
             label: context => {
               const d = context.raw;
-              return `Team ${d.team}: Avg ${Math.round(d.x)} | Rank #${d.y} | ${getScheduleStrengthLabel(d.schedule)} | ${d.wins.toFixed(1)} wins`;
+              return `Team ${d.team}: Avg ${Math.round(d.x)} | Rank #${d.y} | ${d.schedule !== null ? getScheduleStrengthLabel(d.schedule) : '—'} | ${d.wins.toFixed(1)} wins`;
             }
           }
         }
