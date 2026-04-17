@@ -125,8 +125,8 @@ function computeCalibration() {
 
 async function fetchRankings() {
   if (!tbaKey || !tbaEvt) {
-    document.getElementById('rkNoTBA')?.style.display = 'block';
-    document.getElementById('rkContent')?.style.display = 'none';
+    document.getElementById('rkNoTBA').style.display = 'block';
+    document.getElementById('rkContent').style.display = 'none';
     return;
   }
   try {
@@ -142,12 +142,12 @@ async function fetchRankings() {
 
 function renderRankings() {
   if (!tbaKey || !tbaEvt) {
-    document.getElementById('rkNoTBA')?.style.display = 'block';
-    document.getElementById('rkContent')?.style.display = 'none';
+    document.getElementById('rkNoTBA').style.display = 'block';
+    document.getElementById('rkContent').style.display = 'none';
     return;
   }
-  document.getElementById('rkNoTBA')?.style.display = 'none';
-  document.getElementById('rkContent')?.style.display = 'block';
+  document.getElementById('rkNoTBA').style.display = 'none';
+  document.getElementById('rkContent').style.display = 'block';
   if (!tbaRankData) fetchRankings();
   else renderRankingsTable();
 }
