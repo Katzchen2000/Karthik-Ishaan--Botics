@@ -1,4 +1,7 @@
 // Predictor page and Monte Carlo estimation
+let lastMCRedScores = [];
+let lastMCBlueScores = [];
+let lastMCWinPct = 50;
 function toggleMC() { useMC = !useMC; document.getElementById('mcTog')?.classList.toggle('on', useMC); runPred(); }
 function togglePredCorr() { predCorr = !predCorr; document.getElementById('corrTog')?.classList.toggle('on', predCorr); runPred(); }
 function predModeChanged() { predMode = document.getElementById('predModeSel')?.value || 'avg'; runPred(); }
@@ -258,6 +261,7 @@ function runPred() {
     const rArr = mkArr(R, 'red');
     const bArr = mkArr(B, 'blue');
     let rW = 0, ties = 0;
+    let rScores = [], bScores = [];
     const N = 15000;
     for (let j = 0; j < N; j++) {
       let rs = 0, bs = 0;
@@ -273,12 +277,22 @@ function runPred() {
       else if (dprMode === 'points') { rs = Math.max(0, rs - rDprPts); bs = Math.max(0, bs - bDprPts); }
       if (rs > bs) rW++;
       else if (rs === bs) ties++;
+      rScores.push(Math.round(rs));
+      bScores.push(Math.round(bs));
     }
-    rWin = Math.round((rW + ties * 0.5) / N * 100);
+    lastMCRedScores = rScores;
+    lastMCBlueScores = bScores;
+    lastMCWinPct = Math.round((rW + ties * 0.5) / N * 100);
+    rWin = lastMCWinPct;
     note = `MC ${(N / 1000).toFixed(0)}k (skew-adjusted) · ${predMode}${predCorr ? ' (Corr)' : ''} · Red σ≈${fmt(rSd, 1)} · Blue σ≈${fmt(bSd, 1)}${hasDprTag}${hasDefTag}`;
-  } else if (rPrim + bPrim > 0) {
-    rWin = Math.round(rPrim / (rPrim + bPrim) * 100) || 50;
-    note = `${predMode} scores${predCorr ? ' (Corr)' : ''}${hasDprTag}${hasDefTag}`;
+  } else {
+    lastMCRedScores = [];
+    lastMCBlueScores = [];
+    lastMCWinPct = 50;
+    if (rPrim + bPrim > 0) {
+      rWin = Math.round(rPrim / (rPrim + bPrim) * 100) || 50;
+      note = `${predMode} scores${predCorr ? ' (Corr)' : ''}${hasDprTag}${hasDefTag}`;
+    }
   }
 
   const bWin = 100 - rWin;
@@ -357,39 +371,10 @@ function renderMCHistogram() {
 
   if (chartInsts['mcHistogram']) chartInsts['mcHistogram'].destroy();
 
-  const redScores = [];
-  const blueScores = [];
-  const R = getSlots('red');
-  const B = getSlots('blue');
+  const redScores = lastMCRedScores.slice();
+  const blueScores = lastMCBlueScores.slice();
 
-  if (!R.length || !B.length) return;
-
-  const primaryVal = t => predMode === 'max' ? teamMaxVal(t) : predMode === 'min' ? teamMinVal(t) : teamAvgVal(t);
-  const defMult = (alLabel, si) => !!predDef[`${alLabel}${si}`] ? 0.5 : 1;
-  const mkArr = (slots, alLabel) => slots.map(({ t, i }) => ({
-    mean: primaryVal(t) * defMult(alLabel, i),
-    std: (teamStdVal(t) || 3) * defMult(alLabel, i),
-    skew: teamSkew(t),
-    min: 0
-  }));
-
-  const rArr = mkArr(R, 'red');
-  const bArr = mkArr(B, 'blue');
-  const N = 5000;
-
-  for (let j = 0; j < N; j++) {
-    let rs = 0, bs = 0;
-    for (let k = 0; k < rArr.length; k++) {
-      const a = rArr[k];
-      rs += Math.max(a.min, a.skew !== 0 ? skewSamp(a.mean, a.std, a.skew) : normSamp(a.mean, a.std));
-    }
-    for (let k = 0; k < bArr.length; k++) {
-      const a = bArr[k];
-      bs += Math.max(a.min, a.skew !== 0 ? skewSamp(a.mean, a.std, a.skew) : normSamp(a.mean, a.std));
-    }
-    redScores.push(Math.round(rs));
-    blueScores.push(Math.round(bs));
-  }
+  if (!redScores.length || !blueScores.length) return;
 
   const binSize = 10;
   const maxScore = Math.max(...redScores, ...blueScores);
@@ -405,8 +390,9 @@ function renderMCHistogram() {
   redScores.forEach(s => { const bin = Math.min(Math.floor(s / binSize), numBins - 1); rHist[bin]++; });
   blueScores.forEach(s => { const bin = Math.min(Math.floor(s / binSize), numBins - 1); bHist[bin]++; });
 
-  const rMean = redScores.reduce((a, b) => a + b) / N;
-  const bMean = blueScores.reduce((a, b) => a + b) / N;
+  const N = redScores.length;
+  const rMean = redScores.reduce((a, b) => a + b, 0) / N;
+  const bMean = blueScores.reduce((a, b) => a + b, 0) / N;
   const rStd = Math.sqrt(redScores.reduce((s, v) => s + (v - rMean) ** 2, 0) / N);
   const bStd = Math.sqrt(blueScores.reduce((s, v) => s + (v - bMean) ** 2, 0) / N);
 
@@ -480,7 +466,7 @@ function renderMCWinGauge() {
   ctx.clearRect(0, 0, w, h);
   ctx.save();
 
-  const winPct = parseInt(document.getElementById('rWin')?.textContent || '50');
+  const winPct = lastMCWinPct;
   const blueWinPct = 100 - winPct;
   const redAngle = (winPct / 100) * Math.PI * 2;
 

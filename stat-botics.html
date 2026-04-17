@@ -16,6 +16,7 @@
     <button class="ntab" id="tab-teams" onclick="goto('teams')">Teams</button>
     <button class="ntab" id="tab-matches" onclick="goto('matches')">Matches</button>
     <button class="ntab" id="tab-predictor" onclick="goto('predictor')">Predictor</button>
+    <button class="ntab" id="tab-simulation" onclick="goto('simulation')">Simulation</button>
     <button class="ntab" id="tab-picklist" onclick="goto('picklist')">Picklist</button>
     <button class="ntab" id="tab-charts" onclick="goto('charts')">Charts</button>
     <button class="ntab" id="tab-rankings" onclick="goto('rankings')">Rankings</button>
@@ -213,6 +214,42 @@
         </div>
         <div id="mcHistogramStats" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:10px"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- SIMULATION -->
+  <div id="pgSimulation" class="page">
+    <div class="phdr">
+      <h2>Simulation</h2><span class="badge" id="simBadge">0 teams</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:center">
+      <div style="flex:1;min-width:220px;font-size:11px;color:var(--mut)">Predicted ending qualification rank using each team’s current point average and match schedule strength.</div>
+      <button class="bsm" onclick="renderSimulation()">Refresh</button>
+    </div>
+    <div class="bwrap" style="height:320px;margin-bottom:16px"><canvas id="simRankCanvas"></canvas></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <div style="font-size:11px;color:var(--mut);font-weight:700">Schedule Strength Legend:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--grn);border-radius:50%"></span>Easy</span>
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--yel);border-radius:50%"></span>Medium</span>
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--red);border-radius:50%"></span>Hard</span>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:720px">
+        <thead>
+          <tr style="text-align:left;border-bottom:1px solid rgba(148,163,184,.2)">
+            <th style="padding:8px 6px;color:var(--mut);font-size:11px">#</th>
+            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Team</th>
+            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Name</th>
+            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Avg Score</th>
+            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Schedule</th>
+            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Projected Wins</th>
+            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Pred Rank</th>
+          </tr>
+        </thead>
+        <tbody id="simBody"></tbody>
+      </table>
     </div>
   </div>
 
