@@ -97,6 +97,7 @@ function computeCalibration() {
   });
 
   cal = { scalar: globalScalar, teamScalars, r2, rmse, n: apts.length, pts: apts, ready: true };
+  computePerMatchScalars();
 
   allTeams.forEach(t => t.dprMatches = []);
   const getRolesForMatch = (t, mn) => { const mh = t.history.find(x => x.match === mn); return mh ? mh.roles : []; };
@@ -131,6 +132,37 @@ function computeCalibration() {
       t.dprPoints = null;
       t.dprMulti = null;
     }
+  });
+}
+
+function computePerMatchScalars() {
+  perMatchScalars = {};
+  perMatchCorrectedAvgs = {};
+  if (!tbaData || !allTeams.length) return;
+
+  tbaData.matches.forEach(m => {
+    if (!m.alliances.red.score || m.alliances.red.score < 0) return;
+    const mn_ = m.match_number;
+
+    [{ tns: m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', ''))), score: m.alliances.red.score },
+     { tns: m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', ''))), score: m.alliances.blue.score }
+    ].forEach(({ tns, score }) => {
+      const rows = tns.map(tn => {
+        const t = allTeams.find(x => x.teamNumber === tn);
+        return t ? t.history.find(h => h.match === mn_) : null;
+      });
+      if (rows.some(r => !r) || score <= 0) return;
+      const sumS = rows.reduce((s, r) => s + r.total, 0);
+      const allianceScalar = sumS > 0 ? score / sumS : 1;
+
+      rows.forEach((row, i) => {
+        const tn = tns[i];
+        if (!perMatchScalars[tn]) perMatchScalars[tn] = {};
+        if (!perMatchCorrectedAvgs[tn]) perMatchCorrectedAvgs[tn] = {};
+        perMatchScalars[tn][mn_] = allianceScalar;
+        perMatchCorrectedAvgs[tn][mn_] = row.total * allianceScalar;
+      });
+    });
   });
 }
 

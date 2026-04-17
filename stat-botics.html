@@ -17,6 +17,7 @@
     <button class="ntab" id="tab-matches" onclick="goto('matches')">Matches</button>
     <button class="ntab" id="tab-predictor" onclick="goto('predictor')">Predictor</button>
     <button class="ntab" id="tab-simulation" onclick="goto('simulation')">Simulation</button>
+    <button class="ntab" id="tab-notes" onclick="goto('notes')">Notes</button>
     <button class="ntab" id="tab-picklist" onclick="goto('picklist')">Picklist</button>
     <button class="ntab" id="tab-charts" onclick="goto('charts')">Charts</button>
     <button class="ntab" id="tab-rankings" onclick="goto('rankings')">Rankings</button>
@@ -78,6 +79,13 @@
       <button class="sbtn" id="tv-corr" onclick="setTView('corr')">TBA Corrected</button>
     </div>
     <div class="sbar">
+      <select id="teamCorrModeSel" class="tsel" style="width:auto; margin:0; padding:4px 8px; font-size:11px" onchange="teamCorrModeChanged()">
+        <option value="none">TBA: Off</option>
+        <option value="team" selected>TBA: Team scalar</option>
+        <option value="match">TBA: Match scalar</option>
+      </select>
+    </div>
+    <div class="sbar sort-controls">
       <span style="margin-right:8px">Sort:</span>
       <button class="sbtn on" id="sk-total" onclick="setSort('total')">Total</button>
       <button class="sbtn" id="sk-auto" onclick="setSort('auto')">Auto</button>
@@ -128,10 +136,11 @@
         <option value="max">Mode: Max (Ceiling)</option>
         <option value="min">Mode: Min (Floor)</option>
       </select>
-      <label class="mctog" style="margin:0;">
-        <div class="toggle" id="corrTog" onclick="togglePredCorr()"></div>
-        Use TBA Corrected
-      </label>
+      <select id="corrModeSel" class="tsel" style="width:auto; margin:0; padding:4px 8px; font-size:11px" onchange="corrModeChanged()">
+        <option value="none">TBA Correction: Off</option>
+        <option value="team" selected>TBA Correction: Team scalar</option>
+        <option value="match">TBA Correction: Match scalar</option>
+      </select>
       <label class="mctog" style="margin:0;">
         <div class="toggle" id="mcTog" onclick="toggleMC()"></div>
         Monte Carlo (10k)
@@ -251,6 +260,28 @@
         </thead>
         <tbody id="simBody"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div id="pgNotes" class="page">
+    <div class="phdr">
+      <h2>Notes</h2><span class="badge" id="notesBadge">0</span>
+      <input class="sbox" id="nSearch" placeholder="Search team # or name…" oninput="renderNotes()">
+    </div>
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <div style="width:320px;border-right:1px solid var(--bdr);padding-right:12px">
+        <div class="sbar" style="margin-bottom:8px">
+          <button class="sbtn" onclick="renderNotes()">Refresh List</button>
+          <button class="sbtn" onclick="exportNotes()">Export All</button>
+          <input type="file" id="notesImportInput" style="display:none" accept=".json" onchange="importNotes(event)">
+          <button class="sbtn" onclick="document.getElementById('notesImportInput').click()">Import</button>
+        </div>
+        <div id="notesList" style="max-height:640px;overflow:auto;border-top:1px solid var(--bdr)"></div>
+      </div>
+      <div style="flex:1;padding-left:12px">
+        <div id="noteEditor">Select a team to view/edit notes.</div>
+      </div>
     </div>
   </div>
 
@@ -595,6 +626,7 @@
 <script src="js/csv.js"></script>
 <script src="js/tba.js"></script>
 <script src="js/teams.js"></script>
+<script src="js/notes.js"></script>
 <script src="js/matches.js"></script>
 <script src="js/predictor.js"></script>
 <script src="js/picklist.js"></script>

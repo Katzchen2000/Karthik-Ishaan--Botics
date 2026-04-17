@@ -25,7 +25,7 @@ function getTeamScheduleStrength(teamNumber) {
     opponents.forEach(oppNum => {
       const oppTeam = allTeams.find(t => t.teamNumber === oppNum);
       if (oppTeam && oppTeam.totalAvg !== null) {
-        const val = predCorr && cal.ready ? (tCorr(oppTeam) || 0) : (oppTeam.totalAvg || 0);
+        const val = (tbaCorrectionMode !== 'none' && cal.ready) ? (tCorr(oppTeam) || 0) : (oppTeam.totalAvg || 0);
         opponentStrength += val;
         count++;
       }
@@ -66,7 +66,7 @@ function projectionForTeam(teamNumber) {
   if (!teamMatches.length) return null;
 
   const totalMatches = teamMatches.length;
-  const teamStr = predCorr && cal.ready ? (tCorr(team) || 0) : (team.totalAvg || 0);
+  const teamStr = (tbaCorrectionMode !== 'none' && cal.ready) ? (tCorr(team) || 0) : (team.totalAvg || 0);
   let projectedWins = 0;
   let tiedMatches = 0;
   const schedule = getTeamScheduleStrength(teamNumber);
@@ -90,7 +90,7 @@ function projectionForTeam(teamNumber) {
       opponents.forEach(opp => {
         const oppTeam = allTeams.find(t => t.teamNumber === opp);
         if (oppTeam) {
-          const oppVal = predCorr && cal.ready ? (tCorr(oppTeam) || 0) : (oppTeam.totalAvg || 0);
+          const oppVal = (tbaCorrectionMode !== 'none' && cal.ready) ? (tCorr(oppTeam) || 0) : (oppTeam.totalAvg || 0);
           oppAvg += oppVal;
           oppCount++;
         }
@@ -152,7 +152,15 @@ function renderTeamRankPrediction(teamNumber) {
   const pred = predictTeamRank(teamNumber);
   if (!pred) return '';
 
-  const rankDiff = Math.abs(pred.predictedRank - (tbaRankData?.find(r => r.team_number === teamNumber)?.rank || pred.predictedRank));
+  const tbaRank = (() => {
+    if (!tbaRankData) return null;
+    const list = Array.isArray(tbaRankData) ? tbaRankData : (tbaRankData.rankings || []);
+    if (!Array.isArray(list)) return null;
+    const rec = list.find(r => (r.team_number && r.team_number === teamNumber) || (r.team_key && parseInt(String(r.team_key).replace('frc', '')) === teamNumber));
+    return rec ? (rec.rank ?? rec.ranking ?? null) : null;
+  })();
+
+  const rankDiff = Math.abs(pred.predictedRank - (tbaRank ?? pred.predictedRank));
   const rankColor = rankDiff < 5 ? 'var(--grn)' : rankDiff < 10 ? 'var(--yel)' : 'var(--red)';
 
   return `

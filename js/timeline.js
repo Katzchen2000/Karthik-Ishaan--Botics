@@ -48,12 +48,18 @@ function buildTeamTimeline(team) {
   if (!team.history) return { teamNumber: team.teamNumber, teamName: team.teamName, matches: [], stats: { avgRaw: 0, avgCorr: 0, best: 0, worst: 0, trend: 'stable', count: 0 } };
 
   team.history.forEach(hist => {
-    const scalar = cal.ready ? (cal.teamScalars[team.teamNumber]?.scalar || cal.scalar) : 1;
-    const corrected = hist.total * scalar;
+    const scalar = cal.ready
+      ? (tbaCorrectionMode === 'match'
+          ? (perMatchScalars[team.teamNumber]?.[hist.match] ?? (cal.teamScalars[team.teamNumber]?.scalar || cal.scalar))
+          : (tbaCorrectionMode === 'team'
+              ? (cal.teamScalars[team.teamNumber]?.scalar || cal.scalar)
+              : 1))
+      : 1;
+    const correctedValue = corrected(hist.total, team.teamNumber, hist.match);
     matches.push({
       match: hist.match,
       scouted: hist.total,
-      corrected: corrected,
+      corrected: correctedValue,
       scalar: scalar,
       role: hist.roles && hist.roles.length ? hist.roles[0] : 'N/A',
       climb: hist.climb || '—',

@@ -132,12 +132,26 @@ function roleColor(topRole) {
   return RCOL[b];
 }
 
-function corrected(raw, tn) {
-  if (!cal.ready || raw === null || raw === undefined) return null;
+function corrected(raw, tn, matchNumber = null) {
+  if (!cal.ready || raw === null || raw === undefined) return raw;
+  if (tbaCorrectionMode === 'none') return raw;
+  if (tbaCorrectionMode === 'match' && tn != null && matchNumber != null) {
+    const scalar = perMatchScalars[tn]?.[matchNumber];
+    if (scalar != null && !isNaN(scalar)) return raw * scalar;
+  }
   const ts = tn != null ? cal.teamScalars[tn] : null;
-  return raw * (ts ? ts.scalar : cal.scalar);
+  const scalar = ts ? ts.scalar : cal.scalar;
+  return raw * scalar;
 }
 
 function tCorr(t) {
+  if (!cal.ready || !t) return null;
+  if (tbaCorrectionMode === 'none') return t.totalAvg || 0;
+  if (tbaCorrectionMode === 'match') {
+    const values = (t.history || [])
+      .map(h => corrected(h.total, t.teamNumber, h.match))
+      .filter(v => v !== null && !isNaN(v));
+    return values.length ? values.reduce((s, v) => s + v, 0) / values.length : (t.totalAvg || 0);
+  }
   return corrected(t.totalAvg, t.teamNumber);
 }

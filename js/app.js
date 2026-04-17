@@ -5,12 +5,15 @@ let tbaKey = '';
 let tbaEvt = '';
 let tbaData = null;
 let cal = { scalar: 1, teamScalars: {}, r2: null, rmse: null, n: 0, pts: [], ready: false };
-let sortKey = 'totalAvg';
+let perMatchScalars = {};
+let perMatchCorrectedAvgs = {};
+let sortKey = 'total';
 let sortDir = -1;
 let useMC = false;
 let predMode = 'avg';
-let predCorr = true;
+let tbaCorrectionMode = 'team';
 let plNotes = {};
+let teamNotes = {};
 let plOrder = [];
 let alliances = Array.from({ length: 8 }, () => [null, null, null]);
 let detCharts = {};
@@ -32,7 +35,7 @@ const RCOL = { Cycler: 'rgba(129,140,248,.8)', Scorer: 'rgba(56,189,248,.8)', Fe
 const DCOL = { VeryGood: 'rgba(16,185,129,.8)', Good: 'rgba(14,165,233,.8)', Decent: 'rgba(245,158,11,.8)', Bad: 'rgba(239,68,68,.8)', null: 'rgba(100,116,139,.7)' };
 const ALBL = { autoAvg: 'Auto Avg', teleopAvg: 'Teleop Avg', endgameAvg: 'Endgame Avg', totalAvg: 'Total Avg', climbRate: 'Climb %', totalStd: 'Std Dev σ', validCount: 'Matches', dprMulti: 'DPR Limit' };
 
-const PGMAP = { teams: 'pgTeams', matches: 'pgMatches', predictor: 'pgPredictor', simulation: 'pgSimulation', picklist: 'pgPicklist', charts: 'pgCharts', rankings: 'pgRankings', timeline: 'pgTimeline' };
+const PGMAP = { teams: 'pgTeams', matches: 'pgMatches', predictor: 'pgPredictor', simulation: 'pgSimulation', notes: 'pgNotes', picklist: 'pgPicklist', charts: 'pgCharts', rankings: 'pgRankings', timeline: 'pgTimeline' };
 
 function goto(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
@@ -43,6 +46,7 @@ function goto(id) {
   if (id === 'matches') renderMatches();
   if (id === 'predictor') renderPredictor();
   if (id === 'simulation') renderSimulation();
+  if (id === 'notes') renderNotes();
   if (id === 'picklist') renderPicklist();
   if (id === 'charts') { renderBubble(); renderOPR(); renderRank(); renderDeviation(); }
   if (id === 'rankings') renderRankings();

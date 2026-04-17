@@ -3,7 +3,22 @@ let lastMCRedScores = [];
 let lastMCBlueScores = [];
 let lastMCWinPct = 50;
 function toggleMC() { useMC = !useMC; document.getElementById('mcTog')?.classList.toggle('on', useMC); runPred(); }
-function togglePredCorr() { predCorr = !predCorr; document.getElementById('corrTog')?.classList.toggle('on', predCorr); runPred(); }
+function setTbaCorrectionMode(mode) {
+  tbaCorrectionMode = mode || 'none';
+  const predSel = document.getElementById('corrModeSel');
+  const teamSel = document.getElementById('teamCorrModeSel');
+  if (predSel) predSel.value = tbaCorrectionMode;
+  if (teamSel) teamSel.value = tbaCorrectionMode;
+  renderTeams();
+  renderTimeline();
+  runPred();
+}
+function corrModeChanged() {
+  setTbaCorrectionMode(document.getElementById('corrModeSel')?.value || 'none');
+}
+function teamCorrModeChanged() {
+  setTbaCorrectionMode(document.getElementById('teamCorrModeSel')?.value || 'none');
+}
 function predModeChanged() { predMode = document.getElementById('predModeSel')?.value || 'avg'; runPred(); }
 
 function predSlotChanged(al, i) {
@@ -151,9 +166,31 @@ function teamSkew(t) {
 }
 
 const DEF_SCORE_MULT = 0.5;
-function teamAvgVal(t) { return predCorr && cal.ready ? (tCorr(t) || 0) : (t.totalAvg || 0); }
-function teamMaxVal(t) { return predCorr && cal.ready ? (corrected(t.totalMax, t.teamNumber) || 0) : (t.totalMax || 0); }
-function teamMinVal(t) { return predCorr && cal.ready ? (corrected(t.totalMin, t.teamNumber) || 0) : (t.totalMin || 0); }
+function getMatchCorrectedTotals(t) {
+  if (!t.history || !t.history.length) return [];
+  return t.history.map(h => corrected(h.total, t.teamNumber, h.match));
+}
+function teamAvgVal(t) {
+  if (!cal.ready || t.totalAvg === null) return t.totalAvg || 0;
+  if (tbaCorrectionMode === 'none') return t.totalAvg || 0;
+  if (tbaCorrectionMode === 'team') return tCorr(t) || 0;
+  const values = getMatchCorrectedTotals(t).filter(v => v !== null && !isNaN(v));
+  return values.length ? values.reduce((s, v) => s + v, 0) / values.length : (t.totalAvg || 0);
+}
+function teamMaxVal(t) {
+  if (!cal.ready || t.totalMax === null) return t.totalMax || 0;
+  if (tbaCorrectionMode === 'none') return t.totalMax || 0;
+  if (tbaCorrectionMode === 'team') return corrected(t.totalMax, t.teamNumber) || 0;
+  const values = getMatchCorrectedTotals(t).filter(v => v !== null && !isNaN(v));
+  return values.length ? Math.max(...values) : (t.totalMax || 0);
+}
+function teamMinVal(t) {
+  if (!cal.ready || t.totalMin === null) return t.totalMin || 0;
+  if (tbaCorrectionMode === 'none') return t.totalMin || 0;
+  if (tbaCorrectionMode === 'team') return corrected(t.totalMin, t.teamNumber) || 0;
+  const values = getMatchCorrectedTotals(t).filter(v => v !== null && !isNaN(v));
+  return values.length ? Math.min(...values) : (t.totalMin || 0);
+}
 function teamStdVal(t) { return cal.ready ? (t.totalStd || 0) * (cal.teamScalars[t.teamNumber]?.scalar || cal.scalar) : (t.totalStd || 0); }
 
 function runPred() {
@@ -284,19 +321,19 @@ function runPred() {
     lastMCBlueScores = bScores;
     lastMCWinPct = Math.round((rW + ties * 0.5) / N * 100);
     rWin = lastMCWinPct;
-    note = `MC ${(N / 1000).toFixed(0)}k (skew-adjusted) · ${predMode}${predCorr ? ' (Corr)' : ''} · Red σ≈${fmt(rSd, 1)} · Blue σ≈${fmt(bSd, 1)}${hasDprTag}${hasDefTag}`;
+    note = `MC ${(N / 1000).toFixed(0)}k (skew-adjusted) · ${predMode}${(tbaCorrectionMode !== 'none' && cal.ready) ? ' (Corr)' : ''} · Red σ≈${fmt(rSd, 1)} · Blue σ≈${fmt(bSd, 1)}${hasDprTag}${hasDefTag}`;
   } else {
     lastMCRedScores = [];
     lastMCBlueScores = [];
     lastMCWinPct = 50;
     if (rPrim + bPrim > 0) {
       rWin = Math.round(rPrim / (rPrim + bPrim) * 100) || 50;
-      note = `${predMode} scores${predCorr ? ' (Corr)' : ''}${hasDprTag}${hasDefTag}`;
+      note = `${predMode} scores${(tbaCorrectionMode !== 'none' && cal.ready) ? ' (Corr)' : ''}${hasDprTag}${hasDefTag}`;
     }
   }
 
   const bWin = 100 - rWin;
-  const corrTag = predCorr && cal.ready ? `<span class="corrtag" style="font-size:10px">corrected</span>` : '';
+  const corrTag = (tbaCorrectionMode !== 'none' && cal.ready) ? `<span class="corrtag" style="font-size:10px">corrected</span>` : '';
   const modeTag = `<span class="corrtag" style="font-size:10px;background:rgba(245,158,11,.15);color:var(--yel);border-color:rgba(245,158,11,.3)">${predMode}</span>`;
 
   document.getElementById('pRed').innerHTML = `${R.length ? Math.round(rPrim) : '?'} ${corrTag} ${modeTag}`;

@@ -6,6 +6,18 @@ function setTView(mode) {
   renderTeams();
 }
 
+// Helper for debugging sorts from the console
+function debugPrintSorted() {
+  try {
+    const rows = getFilteredTeams().map(t => ({ teamNumber: t.teamNumber, name: t.teamName, val: getTeamVal(t, sortKey) }));
+    console.log('[sort] debugPrintSorted', { sortKey, sortDir, rows });
+    return rows;
+  } catch (e) {
+    console.error('[sort] debugPrintSorted error', e);
+    return null;
+  }
+}
+
 function getTeamVal(t, key) {
   if (key === 'teamNumber' || key === 'validCount' || key === 'climbRate') return t[key];
   if (key === 'auto' || key === 'teleop' || key === 'endgame' || key === 'total') {
@@ -19,9 +31,12 @@ function getTeamVal(t, key) {
 }
 
 function setSort(k) {
+  const prevKey = sortKey;
+  const prevDir = sortDir;
   if (sortKey === k) sortDir *= -1;
   else { sortKey = k; sortDir = -1; }
-  document.querySelectorAll('.sbar .sbtn').forEach(b => {
+  console.log('[sort] setSort', { requested: k, prevKey, prevDir, newKey: sortKey, newDir: sortDir });
+  document.querySelectorAll('.sort-controls .sbtn').forEach(b => {
     b.classList.remove('on');
     b.textContent = b.textContent.replace(/ [\u2191\u2193]$/, '');
   });
@@ -38,7 +53,7 @@ function setDprSort() {
     sortKey = dprSortMetric;
     sortDir = 1;
   }
-  document.querySelectorAll('.sbar .sbtn').forEach(b => {
+  document.querySelectorAll('.sort-controls .sbtn').forEach(b => {
     b.classList.remove('on');
     b.textContent = b.textContent.replace(/ [\u2191\u2193]$/, '');
   });
@@ -51,15 +66,22 @@ function setDprSort() {
 function getFilteredTeams() {
   const q = (document.getElementById('tSearch')?.value || '').toLowerCase();
   let a = allTeams.filter(t => !q || String(t.teamNumber).includes(q) || t.teamName.toLowerCase().includes(q));
-  let finalSortKey = sortKey;
-  if (sortKey === 'totalAvg' || sortKey === 'corrAvg' || sortKey === 'totalMax') finalSortKey = 'total';
-  return [...a].sort((a, b) => {
-    let av = getTeamVal(a, finalSortKey);
-    let bv = getTeamVal(b, finalSortKey);
+  try {
+    const samplePre = a.slice(0, 8).map(t => ({ teamNumber: t.teamNumber, val: getTeamVal(t, sortKey) }));
+    console.log('[sort] preSort sample', { sortKey, sortDir, samplePre });
+  } catch (e) { console.debug('[sort] preSort sample error', e); }
+  const sorted = [...a].sort((a, b) => {
+    let av = getTeamVal(a, sortKey);
+    let bv = getTeamVal(b, sortKey);
     if (av == null) av = sortDir > 0 ? 1e9 : -1e9;
     if (bv == null) bv = sortDir > 0 ? 1e9 : -1e9;
     return (av - bv) * sortDir;
   });
+  try {
+    const samplePost = sorted.slice(0, 8).map(t => ({ teamNumber: t.teamNumber, val: getTeamVal(t, sortKey) }));
+    console.log('[sort] postSort sample', { sortKey, sortDir, samplePost });
+  } catch (e) { console.debug('[sort] postSort sample error', e); }
+  return sorted;
 }
 
 function getDeltaBadge(t) {
@@ -118,9 +140,14 @@ function buildDetHTML(t) {
   const mRows = t.history.map(m => `<tr><td>M${m.match}</td><td>${fmt(m.auto, 0)}</td><td>${fmt(m.teleop, 0)}</td><td>${fmt(m.endgame, 0)}</td><td style="color:var(--acc);font-weight:700">${fmt(m.total, 0)}</td><td>${m.climb && !isNA(m.climb) ? (m.climb.toLowerCase().includes('success') ? 'S' : m.climb.toLowerCase().includes('fail') ? 'F' : m.climb) : '—'}</td></tr>`).join('');
 
   const scheduleStrengthHtml = renderTeamScheduleStrengthBadge(t.teamNumber) ? `<div class="scard" style="--cc:#f59e0b"><div class="sclbl">Schedule</div><div class="scval">${getScheduleStrengthLabel(getTeamScheduleStrength(t.teamNumber)) || '—'}</div><div class="scsub">Average opponent strength</div></div>` : '';
+  const teamScalarValue = cal.ready ? (cal.teamScalars?.[t.teamNumber]?.scalar || cal.scalar) : null;
+  const teamScalarHtml = cal.ready ? `<div class="scard" style="--cc:#8b5cf6"><div class="sclbl">Team Scalar</div><div class="scval">${teamScalarValue ? teamScalarValue.toFixed(3) + '×' : '—'}</div><div class="scsub">Per-team correction factor</div></div><div class="scard" style="--cc:#a855f7"><div class="sclbl">Global Scalar</div><div class="scval">${fmt(cal.scalar, 3)}×</div><div class="scsub">Used when team scalar unavailable</div></div>` : '';
+  const perMatchRows = cal.ready ? Object.entries(perMatchScalars[t.teamNumber] || {}).sort((a, b) => a[0] - b[0]).map(([mn, s]) => `<tr><td style="padding:4px 6px;border-bottom:1px solid var(--bdr)">Q${mn}</td><td style="padding:4px 6px;border-bottom:1px solid var(--bdr);text-align:right">${s.toFixed(3)}×</td><td style="padding:4px 6px;border-bottom:1px solid var(--bdr);text-align:right">${fmt(perMatchCorrectedAvgs[t.teamNumber]?.[mn] || 0)}</td></tr>`).join('') : '';
+  const perMatchScalarHtml = cal.ready ? `<div class="sec" style="overflow:auto;max-height:190px"><div class="sttl">Per-match Scalars</div><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="text-align:left;color:var(--mut);padding:4px 6px;border-bottom:1px solid var(--bdr)">Match</th><th style="text-align:right;color:var(--mut);padding:4px 6px;border-bottom:1px solid var(--bdr)">Scalar</th><th style="text-align:right;color:var(--mut);padding:4px 6px;border-bottom:1px solid var(--bdr)">Corrected</th></tr></thead><tbody>${perMatchRows || `<tr><td colspan="3" style="padding:6px;color:var(--mut)">No per-match scalar data</td></tr>`}</tbody></table></div>` : '';
 
   return `<div class="dcards">
     <div class="scard" style="--cc:#00d4aa"><div class="sclbl">Total Avg</div><div class="scval">${fmt(t.totalAvg)}</div><div class="scsub">Min ${fmt(t.totalMin, 0)} · Max ${fmt(t.totalMax, 0)} · σ ${fmt(t.totalStd, 1)}${corr !== null ? `<br>Corr <span class="corrval">${fmt(corr)}</span><span class="corrtag">×${ts?.scalar.toFixed(2) || '?'} ${ts?.fallback ? '(global)' : '(team)'}</span>` : ''}</div></div>
+    ${teamScalarHtml}
     <div class="scard" style="--cc:#6366f1"><div class="sclbl">Auto Avg</div><div class="scval">${fmt(t.autoAvg)}</div><div class="scsub">Min ${fmt(t.autoMin, 0)} · Max ${fmt(t.autoMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.autoAvg, t.teamNumber))}</span>` : ''}</div></div>
     <div class="scard" style="--cc:#0ea5e9"><div class="sclbl">Teleop Avg</div><div class="scval">${fmt(t.teleopAvg)}</div><div class="scsub">Min ${fmt(t.teleopMin, 0)} · Max ${fmt(t.teleopMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.teleopAvg, t.teamNumber))}</span>` : ''}</div></div>
     <div class="scard" style="--cc:#f59e0b"><div class="sclbl">Endgame Avg</div><div class="scval">${fmt(t.endgameAvg)}</div><div class="scsub">Min ${fmt(t.endgameMin, 0)} · Max ${fmt(t.endgameMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.endgameAvg, t.teamNumber))}</span>` : ''}</div></div>
@@ -133,6 +160,7 @@ function buildDetHTML(t) {
     <div class="sec"><div class="sttl">Rank Prediction</div>${renderTeamRankPrediction(t.teamNumber) || '<span style="font-size:11px;color:var(--mut)">No TBA data</span>'}</div>
     <div class="sec" style="overflow:auto;max-height:190px"><div class="sttl">Match Log</div><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="text-align:left;color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr)">M</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Au</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Te</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">En</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Tot</th><th style="color:var(--mut);padding:3px 6px;border-bottom:1px solid var(--bdr);text-align:right">Cl</th></tr></thead><tbody>${mRows}</tbody></table></div>
     <div class="sec"><div class="sttl">Roles</div>${re.map(([role, cnt]) => `<div class="rrow"><span style="font-size:10px;min-width:80px">${rt(role)}</span><div class="rbg"><div class="rfill" style="width:${Math.round(cnt / mxR * 100)}%;background:${roleColor(role)}"></div></div><span style="font-size:10px;color:var(--mut)">${cnt}</span></div>`).join('') || '<span style="font-size:11px;color:var(--mut)">No data</span>'}</div>
+    ${perMatchScalarHtml}
     <div class="sec"><div class="sttl">Scout Info</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px">
         <div><div style="font-size:9px;color:var(--mut);margin-bottom:2px">Driving</div>${rp(t.drivingProf)}</div>
