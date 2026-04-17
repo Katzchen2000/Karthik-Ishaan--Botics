@@ -141,6 +141,21 @@ function renderDL() {
   if (plChartsOpen) renderPlChartTab(activePlTab);
 }
 
+function togglePlCharts() {
+  plChartsOpen = !plChartsOpen;
+  document.getElementById('plChartsBody').classList.toggle('on', plChartsOpen);
+  document.getElementById('plChartsArr').textContent = plChartsOpen ? '▼' : '▶';
+  if (plChartsOpen) setTimeout(() => renderPlChartTab(activePlTab), 50);
+}
+
+function setPlTab(tab) {
+  activePlTab = tab;
+  ['bubble', 'opr', 'rank'].forEach(t => { document.getElementById('pcp-' + t).style.display = t === tab ? 'block' : 'none'; document.getElementById('pct-' + t)?.classList.toggle('on', t === tab); });
+  renderPlChartTab(tab);
+}
+
+function renderPlChartTab(tab) { if (tab === 'bubble') renderPlBubble(); else if (tab === 'opr') renderPlOPR(); else if (tab === 'rank') renderPlRank(); }
+
 let plDrag = null;
 function dS(e, tn) {
   plDrag = tn;

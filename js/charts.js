@@ -78,9 +78,10 @@ function mkBubble(teams, xKey, yKey, rKey, colorBy, canvasId, detIds, useCorr) {
           ctx2.restore();
         });
       });
-    } }] }
+    } }]
   });
 }
+
 
 function mkBar(teams, metric, sortMode, canvasId, detIds, useCorr, isRank = false) {
   if (!teams.length) return;
@@ -178,6 +179,16 @@ function renderPlOPR() {
   if (!rem.length) return;
   mkBar(rem, document.getElementById('plOM').value, document.getElementById('plOS').value, 'plOprCanvas', ['plON', 'plONm', 'plOC', 'plOR', 'plOprDet'], false, false);
 }
+
+function setChartTab(tab) {
+  activeChartTab = tab;
+  ['bubble', 'opr', 'rank'].forEach(t => { document.getElementById('cp-' + t).style.display = t === tab ? 'block' : 'none'; document.getElementById('ct-' + t)?.classList.toggle('on', t === tab); });
+  if (tab === 'bubble') renderBubble(); else if (tab === 'opr') renderOPR(); else if (tab === 'rank') renderRank();
+}
+
+function toggleBCorr() { bUseCorr = !bUseCorr; document.getElementById('bCorrTog').classList.toggle('on', bUseCorr); renderBubble(); }
+function toggleOCorr() { oUseCorr = !oUseCorr; document.getElementById('oCorrTog').classList.toggle('on', oUseCorr); renderOPR(); }
+function toggleRCorr() { rUseCorr = !rUseCorr; document.getElementById('rCorrTog').classList.toggle('on', rUseCorr); renderRank(); }
 
 function renderPlRank() {
   const rem = getRem();
