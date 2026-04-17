@@ -1,4 +1,11 @@
 // Picklist and alliance board management
+
+function getComponentCorrected(t, component) {
+  if (!t || component === 'climbRate') return null;
+  const raw = t[component] ?? null;
+  return cal.ready ? corrected(raw, t.teamNumber) : raw;
+}
+
 function pickedTeams() {
   return alliances.flat().filter(t => t !== null);
 }
@@ -216,9 +223,9 @@ function renderCmp() {
     ${cal.ready ? row('Corrected Avg', ta ? tCorr(ta) : null, tb ? tCorr(tb) : null) : ''}
     ${row('Total Max', ta?.totalMax, tb?.totalMax)}
     ${row('Std Dev σ', ta?.totalStd, tb?.totalStd, false)}
-    ${row('Auto Avg', ta?.autoAvg, tb?.autoAvg)}
-    ${row('Teleop Avg', ta?.teleopAvg, tb?.teleopAvg)}
-    ${row('Endgame Avg', ta?.endgameAvg, tb?.endgameAvg)}
+    ${row('Auto Avg (Corr)', ta ? getComponentCorrected(ta, 'autoAvg') : null, tb ? getComponentCorrected(tb, 'autoAvg') : null)}
+    ${row('Teleop Avg (Corr)', ta ? getComponentCorrected(ta, 'teleopAvg') : null, tb ? getComponentCorrected(tb, 'teleopAvg') : null)}
+    ${row('Endgame Avg (Corr)', ta ? getComponentCorrected(ta, 'endgameAvg') : null, tb ? getComponentCorrected(tb, 'endgameAvg') : null)}
     ${row('Climb %', ta?.climbRate != null ? ta.climbRate * 100 : null, tb?.climbRate != null ? tb.climbRate * 100 : null)}
     ${row('Matches', ta?.validCount, tb?.validCount)}
     <tr><td>Role</td><td style="text-align:center">${ta ? rt(ta.topRole) || '—' : '—'}</td><td style="text-align:center">${tb ? rt(tb.topRole) || '—' : '—'}</td></tr>

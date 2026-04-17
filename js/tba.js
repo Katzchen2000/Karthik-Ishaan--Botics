@@ -60,12 +60,17 @@ function computeCalibration() {
   if (apts.length) {
     const ns = apts.reduce((s, p) => s + p.scouted * p.tba, 0);
     const ds = apts.reduce((s, p) => s + p.scouted * p.scouted, 0);
-    globalScalar = ds > 0 ? ns / ds : 1;
+    if (ds > 0 && !isNaN(ns) && !isNaN(ds)) {
+      globalScalar = ns / ds;
+      globalScalar = isNaN(globalScalar) || !isFinite(globalScalar) ? 1 : globalScalar;
+    }
     const tbamn = apts.reduce((s, p) => s + p.tba, 0) / apts.length;
     const ssTot = apts.reduce((s, p) => s + (p.tba - tbamn) ** 2, 0);
     const ssRes = apts.reduce((s, p) => s + (p.tba - globalScalar * p.scouted) ** 2, 0);
     r2 = ssTot > 0 ? 1 - ssRes / ssTot : null;
-    rmse = Math.sqrt(ssRes / apts.length);
+    r2 = r2 !== null && (isNaN(r2) || !isFinite(r2)) ? null : r2;
+    const rmseCalc = Math.sqrt(ssRes / apts.length);
+    rmse = isNaN(rmseCalc) || !isFinite(rmseCalc) ? null : rmseCalc;
   }
 
   const teamScalars = {};
@@ -79,10 +84,16 @@ function computeCalibration() {
     const ns = valid.reduce((s, p) => s + p.scoutedVal * p.tbaShare, 0);
     const ds = valid.reduce((s, p) => s + p.scoutedVal * p.scoutedVal, 0);
     const sc = ds > 0 ? ns / ds : globalScalar;
+    const finalSc = isNaN(sc) || !isFinite(sc) ? globalScalar : sc;
     const mn2 = valid.reduce((s, p) => s + p.tbaShare, 0) / valid.length;
     const ssTot = valid.reduce((s, p) => s + (p.tbaShare - mn2) ** 2, 0);
-    const ssRes = valid.reduce((s, p) => s + (p.tbaShare - sc * p.scoutedVal) ** 2, 0);
-    teamScalars[t.teamNumber] = { scalar: sc, n: valid.length, r2: ssTot > 0 ? 1 - ssRes / ssTot : null, rmse: Math.sqrt(ssRes / valid.length), fallback: false };
+    const ssRes = valid.reduce((s, p) => s + (p.tbaShare - finalSc * p.scoutedVal) ** 2, 0);
+    const r2_team = ssTot > 0 ? 1 - ssRes / ssTot : null;
+    const r2_final = r2_team !== null && (isNaN(r2_team) || !isFinite(r2_team)) ? null : r2_team;
+    const rmseSq = ssRes / valid.length;
+    const rmse_team = rmseSq >= 0 && !isNaN(rmseSq) ? Math.sqrt(rmseSq) : null;
+    const rmse_final = rmse_team !== null && (isNaN(rmse_team) || !isFinite(rmse_team)) ? null : rmse_team;
+    teamScalars[t.teamNumber] = { scalar: finalSc, n: valid.length, r2: r2_final, rmse: rmse_final, fallback: false };
   });
 
   cal = { scalar: globalScalar, teamScalars, r2, rmse, n: apts.length, pts: apts, ready: true };

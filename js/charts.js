@@ -182,8 +182,8 @@ function renderPlOPR() {
 
 function setChartTab(tab) {
   activeChartTab = tab;
-  ['bubble', 'opr', 'rank'].forEach(t => { document.getElementById('cp-' + t).style.display = t === tab ? 'block' : 'none'; document.getElementById('ct-' + t)?.classList.toggle('on', t === tab); });
-  if (tab === 'bubble') renderBubble(); else if (tab === 'opr') renderOPR(); else if (tab === 'rank') renderRank();
+  ['bubble', 'opr', 'rank', 'deviation'].forEach(t => { document.getElementById('cp-' + t).style.display = t === tab ? 'block' : 'none'; document.getElementById('ct-' + t)?.classList.toggle('on', t === tab); });
+  if (tab === 'bubble') renderBubble(); else if (tab === 'opr') renderOPR(); else if (tab === 'rank') renderRank(); else if (tab === 'deviation') renderDeviation();
 }
 
 function toggleBCorr() { bUseCorr = !bUseCorr; document.getElementById('bCorrTog').classList.toggle('on', bUseCorr); renderBubble(); }
@@ -194,4 +194,60 @@ function renderPlRank() {
   const rem = getRem();
   if (!rem.length) return;
   mkBar(rem, document.getElementById('plRM').value, 'desc', 'plRankCanvas', ['plRN', 'plRNm', 'plRC', 'plRR', 'plRankDet'], false, true);
+}
+
+function renderDeviation() {
+  if (!cal.ready || !allTeams.length) return;
+  if (chartInsts['devCanvas']) chartInsts['devCanvas'].destroy();
+  const ctx = document.getElementById('devCanvas')?.getContext('2d');
+  if (!ctx) return;
+
+  const points = allTeams.map(t => {
+    const ts = cal.teamScalars[t.teamNumber];
+    if (!ts) return null;
+    const x = ts.scalar;
+    const y = ts.r2 ?? 0.5;
+    const r = Math.max(8, Math.min(20, (ts.n || 1) / 2));
+    const isConsistent = (y >= 0.7);
+    const color = isConsistent ? 'rgba(16,185,129,0.7)' : y >= 0.4 ? 'rgba(245,158,11,0.7)' : 'rgba(239,68,68,0.7)';
+    return { x, y, r, tn: t.teamNumber, teamName: t.teamName, n: ts.n, color, consistent: isConsistent };
+  }).filter(Boolean);
+
+  chartInsts['devCanvas'] = new Chart(ctx, {
+    type: 'bubble',
+    data: {
+      datasets: [{
+        label: 'Team Correction Consistency',
+        data: points.map(p => ({ x: p.x, y: p.y, r: p.r, tn: p.tn, teamName: p.teamName, n: p.n })),
+        backgroundColor: points.map(p => p.color),
+        borderColor: points.map(p => p.color.replace(/\)$/, '.3)')),
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font: { size: 10 } } },
+        tooltip: {
+          callbacks: {
+            label: item => {
+              const d = item.raw;
+              const consistency = d.y >= 0.7 ? 'High' : d.y >= 0.4 ? 'Moderate' : 'Low';
+              return [`${d.tn} — ${d.teamName}`, `Scalar: ${d.x.toFixed(3)}×`, `R²: ${d.y.toFixed(3)}`, `Data pts: ${d.n}`, `Consistency: ${consistency}`];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Correction Scalar (× multiplier)', color: '#64748b', font: { size: 10 } }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,58,95,.3)' } },
+        y: { title: { display: true, text: 'Consistency (R² - scouting accuracy)', color: '#64748b', font: { size: 10 } }, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,58,95,.3)' }, min: 0, max: 1 }
+      },
+      onClick: (e, els) => {
+        if (!els.length) return;
+        const d = chartInsts['devCanvas'].data.datasets[els[0].datasetIndex].data[els[0].index];
+        jumpTeam(d.tn);
+      }
+    }
+  });
 }

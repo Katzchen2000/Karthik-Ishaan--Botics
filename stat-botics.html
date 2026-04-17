@@ -59,7 +59,6 @@
         Choose File
         <input type="file" accept=".csv" style="display:none" onchange="handleCSV(event)">
       </label>
-      <button class="bsec" style="display:inline-block;margin-top:12px;max-width:140px" onclick="loadDefaultCSV()">Load Troy Day 1</button>
     </div>
   </div>
 
@@ -362,6 +361,7 @@
       <button class="sbtn on" id="ct-bubble" onclick="setChartTab('bubble')">Bubble</button>
       <button class="sbtn" id="ct-opr" onclick="setChartTab('opr')">Scout OPR</button>
       <button class="sbtn" id="ct-rank" onclick="setChartTab('rank')">Rank vs Score</button>
+      <button class="sbtn" id="ct-deviation" onclick="setChartTab('deviation')">Deviation</button>
     </div>
     <!-- BUBBLE -->
     <div id="cp-bubble">
@@ -469,6 +469,13 @@
         <div class="bdetcards" id="rC"></div>
         <div id="rR"></div>
       </div>
+    </div>
+    <!-- DEVIATION -->
+    <div id="cp-deviation" style="display:none">
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;color:var(--dim);margin-bottom:6px"><strong>How to read:</strong> Shows each team's correction factor (X-axis) vs scouting consistency (Y-axis). Green = consistent data, Red = inconsistent. Bubble size = data points.</div>
+      </div>
+      <div class="bwrap"><canvas id="devCanvas"></canvas></div>
     </div>
   </div>
 

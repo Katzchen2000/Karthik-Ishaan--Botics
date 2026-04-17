@@ -62,6 +62,18 @@ function getFilteredTeams() {
   });
 }
 
+function getDeltaBadge(t) {
+  if (!cal.ready || t.totalAvg === null) return '';
+  const raw = t.totalAvg;
+  const corr = tCorr(t);
+  if (corr === null) return '';
+  const delta = corr - raw;
+  const color = delta > 0 ? 'var(--grn)' : delta < 0 ? 'var(--red)' : 'var(--mut)';
+  const absDelta = Math.abs(delta);
+  const deltaStr = delta > 0 ? `+${(Math.round(absDelta * 10) / 10)}` : `${(Math.round(absDelta * 10) / 10)}`;
+  return `<span style="font-size:10px;font-weight:700;color:${color};margin-left:4px">${deltaStr}</span>`;
+}
+
 function renderTeams() {
   const teams = getFilteredTeams();
   document.getElementById('tBadge').textContent = allTeams.length;
@@ -79,7 +91,7 @@ function renderTeams() {
         <td class="sv ${sc(au, vC ? 12 : 10, 4)}">${fmt(au)}</td>
         <td class="sv ${sc(te, vC ? 48 : 40, 15)}">${fmt(te)}</td>
         <td class="sv ${sc(en, vC ? 12 : 10, 4)}">${fmt(en)}</td>
-        <td class="sv ${sc(tot, vC ? 70 : 60, 25)}" style="font-size:14px;font-weight:700">${fmt(tot)}</td>
+        <td class="sv ${sc(tot, vC ? 70 : 60, 25)}" style="font-size:14px;font-weight:700">${fmt(tot)}${getDeltaBadge(t)}</td>
         <td>${t.climbRate !== null ? `<div class="cbar"><div class="cbar-bg"><div class="cbar-fill" style="width:${Math.round(t.climbRate * 100)}%"></div></div><span style="font-size:10px;color:var(--dim)">${Math.round(t.climbRate * 100)}%</span></div>` : '—'}</td>
         <td class="sv md">${(dprSortMetric === 'dprPoints' && t.dprPoints !== null && t.dprPoints > 0) ? ('-' + Math.round(t.dprPoints) + 'pts') : (t.dprMulti !== null && t.dprMulti < 1 ? t.dprMulti.toFixed(2) + '×' : '—')}</td>
         <td>${rt(t.topRole) || '—'}</td>

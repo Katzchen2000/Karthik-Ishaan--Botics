@@ -9,7 +9,7 @@ let sortKey = 'totalAvg';
 let sortDir = -1;
 let useMC = false;
 let predMode = 'avg';
-let predCorr = false;
+let predCorr = true;
 let plNotes = {};
 let plOrder = [];
 let alliances = Array.from({ length: 8 }, () => [null, null, null]);
@@ -43,7 +43,7 @@ function goto(id) {
   if (id === 'matches') renderMatches();
   if (id === 'predictor') renderPredictor();
   if (id === 'picklist') renderPicklist();
-  if (id === 'charts') { renderBubble(); renderOPR(); renderRank(); }
+  if (id === 'charts') { renderBubble(); renderOPR(); renderRank(); renderDeviation(); }
   if (id === 'rankings') renderRankings();
 }
 

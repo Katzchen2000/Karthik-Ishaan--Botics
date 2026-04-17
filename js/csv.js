@@ -17,27 +17,6 @@ function handleCSV(e) {
   });
 }
 
-async function loadDefaultCSV() {
-  try {
-    const response = await fetch('../../../Downloads/TroyDay1Export(in).csv');
-    if (!response.ok) throw new Error('File not found at relative path. Attempting fallback...');
-    const text = await response.text();
-    Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      complete(res) {
-        rawRows = res.data;
-        allTeams = buildAllTeams(rawRows);
-        plOrder = allTeams.map(t => t.teamNumber);
-        goto('teams');
-        openTBAModal();
-      }
-    });
-  } catch (err) {
-    alert('Could not auto-load CSV from path. Please use "Choose File" and select "TroyDay1Export(in).csv" from your Downloads.');
-  }
-}
-
 window.addEventListener('DOMContentLoaded', () => {
   const dz = document.getElementById('dz');
   if (!dz) return;

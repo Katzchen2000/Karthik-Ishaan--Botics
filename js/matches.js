@@ -91,9 +91,95 @@ const scoutedAll = teams => {
   return c ? s : null;
 };
 
+const scoutedAllCorrected = teams => {
+  let s = 0, c = 0;
+  teams.forEach(tn => {
+    const t = allTeams.find(x => x.teamNumber === tn);
+    if (t && t.totalAvg !== null) {
+      s += cal.ready ? corrected(t.totalAvg, tn) : t.totalAvg;
+      c++;
+    }
+  });
+  return c ? s : null;
+};
+
+function getMatchDetails(matchNum) {
+  if (!tbaData) return null;
+  const match = tbaData.matches.find(m => m.match_number === matchNum);
+  if (!match) return null;
+  return {
+    matchNum,
+    redTeams: match.alliances.red.team_keys.map(k => parseInt(k.replace('frc', ''))),
+    blueTeams: match.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', ''))),
+    redScore: match.alliances.red.score,
+    blueScore: match.alliances.blue.score
+  };
+}
+
+function buildMatchLogTable(matchNum, side, teams) {
+  const rows = teams.map(tn => {
+    const t = allTeams.find(x => x.teamNumber === tn);
+    if (!t || !t.history) return null;
+    const hist = t.history.find(h => h.match === matchNum);
+    if (!hist) return null;
+    return `<tr><td class="tn">${tn}</td><td>${t.teamName.slice(0, 20)}</td><td>${hist.auto}</td><td>${hist.teleop}</td><td>${hist.endgame}</td><td style="font-weight:700;color:var(--acc)">${hist.total}</td></tr>`;
+  }).filter(Boolean);
+
+  if (!rows.length) return `<div style="font-size:11px;color:var(--mut);padding:8px">No data available</div>`;
+
+  return `<table class="match-detail-table">
+    <thead><tr><th>Team</th><th>Name</th><th>Auto</th><th>Teleop</th><th>Endgame</th><th>Total</th></tr></thead>
+    <tbody>${rows.join('')}</tbody>
+  </table>`;
+}
+
+function buildScoutedInfoTable(matchNum, side, teams) {
+  const rows = teams.map(tn => {
+    const t = allTeams.find(x => x.teamNumber === tn);
+    if (!t || !t.history) return null;
+    const hist = t.history.find(h => h.match === matchNum);
+    if (!hist) return null;
+    const roleStr = hist.roles && hist.roles.length ? hist.roles.join(', ') : 'N/A';
+    return `<tr><td class="tn">${tn}</td><td>${t.teamName.slice(0, 20)}</td><td>${hist.climb || '—'}</td><td>${hist.startPos || '—'}</td><td>${roleStr}</td></tr>`;
+  }).filter(Boolean);
+
+  if (!rows.length) return `<div style="font-size:11px;color:var(--mut);padding:8px">No data available</div>`;
+
+  return `<table class="match-detail-table">
+    <thead><tr><th>Team</th><th>Name</th><th>Climb</th><th>Start Pos</th><th>Roles</th></tr></thead>
+    <tbody>${rows.join('')}</tbody>
+  </table>`;
+}
+
+function buildMatchScalarsTable(matchNum, side, teams) {
+  if (!cal.ready) return `<div style="font-size:11px;color:var(--mut);padding:8px">Calibration not ready</div>`;
+
+  const rows = teams.map(tn => {
+    const ts = cal.teamScalars[tn];
+    if (!ts) return null;
+    const fb = ts.fallback ? 'Global' : 'Team';
+    const r2Str = ts.r2 !== null ? ts.r2.toFixed(3) : '—';
+    return `<tr><td class="tn">${tn}</td><td>${ts.scalar.toFixed(3)}×</td><td>${ts.n} pts</td><td>${r2Str}</td><td>${fb}</td></tr>`;
+  }).filter(Boolean);
+
+  if (!rows.length) return `<div style="font-size:11px;color:var(--mut);padding:8px">No scalars available</div>`;
+
+  return `<table class="match-detail-table">
+    <thead><tr><th>Team</th><th>Scalar</th><th>Data Pts</th><th>R²</th><th>Type</th></tr></thead>
+    <tbody>${rows.join('')}</tbody>
+  </table>`;
+}
+
+function toggleMatchDetails(matchNum) {
+  const detailEl = document.getElementById(`match-details-${matchNum}`);
+  if (!detailEl) return;
+  const isOpen = detailEl.style.display !== 'none';
+  detailEl.style.display = isOpen ? 'none' : 'block';
+}
+
 function buildMCard(m) {
-  const sR = scoutedAll(m.red);
-  const sB = scoutedAll(m.blue);
+  const sR = scoutedAllCorrected(m.red);
+  const sB = scoutedAllCorrected(m.blue);
   const allHave = [...m.red, ...m.blue].every(tn => allTeams.find(x => x.teamNumber === tn));
   const misWarn = allHave ? '' : `<span style="font-size:9px;color:var(--yel);margin-left:5px">Missing data</span>`;
   const chipR = m.red.map(tn => `<span class="tchip${allTeams.find(x => x.teamNumber === tn) ? '' : ' nd'}" onclick="event.stopPropagation();jumpTeam(${tn})">${tn}</span>`).join('');
@@ -112,11 +198,37 @@ function buildMCard(m) {
     stHtml = `<span class="mst mst-u">Upcoming</span>`;
     scHtml = `<div class="mscores"><span style="font-size:11px;color:var(--mut)">No data</span></div>`;
   }
+  const detailsHtml = tbaData ? `<div class="match-details" id="match-details-${m.num}" style="display:none">
+    <div class="match-detail-section">
+      <div class="match-detail-title">Raw Match Logs</div>
+      <div class="match-detail-content" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Red Alliance</div>${buildMatchLogTable(m.num, 'red', m.red)}</div>
+        <div><div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Blue Alliance</div>${buildMatchLogTable(m.num, 'blue', m.blue)}</div>
+      </div>
+    </div>
+    <div class="match-detail-section">
+      <div class="match-detail-title">Scouted Info</div>
+      <div class="match-detail-content" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Red Alliance</div>${buildScoutedInfoTable(m.num, 'red', m.red)}</div>
+        <div><div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Blue Alliance</div>${buildScoutedInfoTable(m.num, 'blue', m.blue)}</div>
+      </div>
+    </div>
+    <div class="match-detail-section">
+      <div class="match-detail-title">Computed Match Scalars</div>
+      <div class="match-detail-content" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Red Alliance</div>${buildMatchScalarsTable(m.num, 'red', m.red)}</div>
+        <div><div style="font-size:10px;color:var(--mut);margin-bottom:6px;font-weight:700">Blue Alliance</div>${buildMatchScalarsTable(m.num, 'blue', m.blue)}</div>
+      </div>
+    </div>
+  </div>` : '';
+
   return `<div class="mcard"><div class="mhdr" onclick="toggleMatch('mb-${m.num}')">
     <span class="mnum">Q${m.num}</span>${stHtml}${misWarn}
     <div class="alcols"><div class="alblk"><span class="allbl al-r">Red</span>${chipR}</div><div class="alblk"><span class="allbl al-b">Blue</span>${chipB}</div></div>
     ${scHtml}
   </div>
+  ${tbaData ? `<button class="match-expand-btn" onclick="event.stopPropagation();toggleMatchDetails(${m.num})" style="width:100%;padding:8px;margin-top:0;border:none;background:var(--surf2);color:var(--acc);font-size:11px;cursor:pointer;border-top:1px solid var(--bdr)">▼ Details</button>` : ''}
+  ${detailsHtml}
   <div class="mbody" id="mb-${m.num}">${buildMBody(m, sR, sB)}</div></div>`;
 }
 

@@ -165,16 +165,27 @@ function runPred() {
   const alSum = (slots, alLabel, valFn) => slots.reduce((s, { t, i }) => s + valFn(t) * defMult(alLabel, i), 0);
   const alStd = (slots, alLabel) => Math.sqrt(slots.reduce((s, { t, i }) => s + (teamStdVal(t) * defMult(alLabel, i)) ** 2, 0));
 
-  let rPrim = alSum(R, 'red', primaryVal);
-  let bPrim = alSum(B, 'blue', primaryVal);
-  let rAvg = alSum(R, 'red', teamAvgVal);
-  let bAvg = alSum(B, 'blue', teamAvgVal);
-  let rMx = alSum(R, 'red', teamMaxVal);
-  let bMx = alSum(B, 'blue', teamMaxVal);
-  let rMn = alSum(R, 'red', teamMinVal);
-  let bMn = alSum(B, 'blue', teamMinVal);
-  let rSd = alStd(R, 'red');
-  let bSd = alStd(B, 'blue');
+  let rPrim = alSum(R, 'red', primaryVal) || 0;
+  let bPrim = alSum(B, 'blue', primaryVal) || 0;
+  let rAvg = alSum(R, 'red', teamAvgVal) || 0;
+  let bAvg = alSum(B, 'blue', teamAvgVal) || 0;
+  let rMx = alSum(R, 'red', teamMaxVal) || 0;
+  let bMx = alSum(B, 'blue', teamMaxVal) || 0;
+  let rMn = alSum(R, 'red', teamMinVal) || 0;
+  let bMn = alSum(B, 'blue', teamMinVal) || 0;
+  let rSd = alStd(R, 'red') || 0;
+  let bSd = alStd(B, 'blue') || 0;
+
+  rPrim = isNaN(rPrim) || !isFinite(rPrim) ? 0 : rPrim;
+  bPrim = isNaN(bPrim) || !isFinite(bPrim) ? 0 : bPrim;
+  rAvg = isNaN(rAvg) || !isFinite(rAvg) ? 0 : rAvg;
+  bAvg = isNaN(bAvg) || !isFinite(bAvg) ? 0 : bAvg;
+  rMx = isNaN(rMx) || !isFinite(rMx) ? 0 : rMx;
+  bMx = isNaN(bMx) || !isFinite(bMx) ? 0 : bMx;
+  rMn = isNaN(rMn) || !isFinite(rMn) ? 0 : rMn;
+  bMn = isNaN(bMn) || !isFinite(bMn) ? 0 : bMn;
+  rSd = isNaN(rSd) || !isFinite(rSd) ? 0 : rSd;
+  bSd = isNaN(bSd) || !isFinite(bSd) ? 0 : bSd;
 
   const dprMode = document.getElementById('dprMode')?.value || 'off';
   let rDprMulti = 1, bDprMulti = 1;
