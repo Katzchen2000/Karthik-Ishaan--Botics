@@ -77,14 +77,17 @@ function recomputeScheduleCache(scale = 100) {
   });
 
   const rawVals = [];
-  allTeams.forEach(t => {
+    allTeams.forEach(t => {
     const tn = t.teamNumber;
     const teamMatches = perTeamMatches[tn] || [];
     if (!teamMatches.length) { scheduleCache.raw[tn] = null; return; }
     let oppSum = 0, oppCount = 0;
+    let partnerSum = 0, partnerCount = 0;
     teamMatches.forEach(m => {
       const isRed = m.alliances.red.team_keys.some(k => parseInt(k.replace('frc', '')) === tn);
       const opponents = isRed ? m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', ''))) : m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', '')));
+      const partners = isRed ? m.alliances.red.team_keys.map(k => parseInt(k.replace('frc', ''))) : m.alliances.blue.team_keys.map(k => parseInt(k.replace('frc', '')));
+      
       opponents.forEach(oppNum => {
         const oppTeam = allTeams.find(x => x.teamNumber === oppNum);
         if (oppTeam && oppTeam.totalAvg !== null) {
@@ -93,8 +96,22 @@ function recomputeScheduleCache(scale = 100) {
           oppCount++;
         }
       });
+      
+      partners.forEach(pNum => {
+        if (pNum === tn) return;
+        const pTeam = allTeams.find(x => x.teamNumber === pNum);
+        if (pTeam && pTeam.totalAvg !== null) {
+          const val = (tbaCorrectionMode !== 'none' && cal.ready) ? (tCorr(pTeam) || 0) : (pTeam.totalAvg || 0);
+          partnerSum += val;
+          partnerCount++;
+        }
+      });
     });
-    const raw = oppCount ? oppSum / oppCount : null;
+    
+    const avgOpp = oppCount ? oppSum / oppCount : 0;
+    const avgPartner = partnerCount ? partnerSum / partnerCount : 0;
+    // Statbotics SOS style: Higher is harder
+    const raw = avgOpp - avgPartner;
     scheduleCache.raw[tn] = raw;
     if (raw !== null) rawVals.push(raw);
   });
@@ -354,6 +371,16 @@ function buildSimulationMatchDetails(teamNumber) {
   </details>`;
 }
 
+function setSimSort(key) {
+  if (simSortKey === key) {
+    simSortDir *= -1;
+  } else {
+    simSortKey = key;
+    simSortDir = (key === 'team' || key === 'index' || key === 'rank') ? 1 : -1;
+  }
+  renderSimulation();
+}
+
 function renderSimulation() {
   const body = document.getElementById('simBody');
   const badge = document.getElementById('simBadge');
@@ -371,19 +398,31 @@ function renderSimulation() {
       predictedRank: pred?.predictedRank || allTeams.length,
       matchDetails: buildSimulationMatchDetails(t.teamNumber)
     };
-  }).sort((a, b) => a.predictedRank - b.predictedRank || b.projectedWins - a.projectedWins || a.team.teamNumber - b.team.teamNumber);
+  });
+
+  // Apply sorting based on simSortKey
+  rows.sort((a, b) => {
+    if (simSortKey === 'team') return (a.team.teamNumber - b.team.teamNumber) * simSortDir;
+    if (simSortKey === 'strength') return (a.strength - b.strength) * simSortDir;
+    if (simSortKey === 'schedule') return ((a.schedule ?? -1) - (b.schedule ?? -1)) * simSortDir;
+    if (simSortKey === 'wins') return (a.projectedWins - b.projectedWins) * simSortDir;
+    if (simSortKey === 'rank') return (a.predictedRank - b.predictedRank) * simSortDir;
+    
+    // Default sorting (index/rank)
+    return a.predictedRank - b.predictedRank || b.projectedWins - a.projectedWins || a.team.teamNumber - b.team.teamNumber;
+  });
 
   badge.textContent = `${rows.length} teams`;
   body.innerHTML = rows.map((row, index) => `
-    <tr style="border-bottom:1px solid rgba(148,163,184,.15)">
-      <td style="padding:8px 6px">${index + 1}</td>
-      <td style="padding:8px 6px">${row.team.teamNumber}</td>
-      <td style="padding:8px 6px">${row.team.teamName.slice(0, 24)}</td>
-      <td style="padding:8px 6px">${Math.round(row.strength)}</td>
-      <td style="padding:8px 6px">${row.schedule !== null ? getScheduleStrengthLabel(row.schedule) : '—'}</td>
-      <td style="padding:8px 6px">${row.projectedWins.toFixed(1)}</td>
-      <td style="padding:8px 6px">#${row.predictedRank}</td>
-      <td style="padding:8px 6px;min-width:240px">${row.matchDetails}</td>
+    <tr>
+      <td>${index + 1}</td>
+      <td>${row.team.teamNumber}</td>
+      <td>${row.team.teamName.slice(0, 24)}</td>
+      <td>${Math.round(row.strength)}</td>
+      <td>${row.schedule !== null ? getScheduleStrengthLabel(row.schedule) : '—'}</td>
+      <td>${row.projectedWins.toFixed(1)}</td>
+      <td>#${row.predictedRank}</td>
+      <td>${row.matchDetails}</td>
     </tr>
   `).join('');
 

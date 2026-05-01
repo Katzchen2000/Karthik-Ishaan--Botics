@@ -12,17 +12,21 @@ async function connectTBA() {
     return;
   }
   try {
-    const r = await fetch(`https://www.thebluealliance.com/api/v3/event/${e}/matches/simple`, { headers: { 'X-TBA-Auth-Key': k } });
+    const r = await fetch(`https://www.thebluealliance.com/api/v3/event/${e}/matches`, { headers: { 'X-TBA-Auth-Key': k } });
     if (!r.ok) { if (err) { err.textContent = `TBA error: ${r.status}`; err.style.display = 'block'; } return; }
     const data = await r.json();
     tbaKey = k;
     tbaEvt = e;
     tbaData = { matches: data.filter(m => m.comp_level === 'qm').sort((a, b) => a.match_number - b.match_number) };
     computeCalibration();
+    // Always re-enrich auton results unconditionally — computeCalibration may exit early
+    if (typeof recomputeAutonResults === 'function') recomputeAutonResults();
     fetchRankings();
     document.getElementById('tbaBtn')?.classList.add('ok');
     if (document.getElementById('tbaBtn')) document.getElementById('tbaBtn').textContent = 'TBA: Connected';
     closeTBAModal();
+    // If auton filter is active, re-render now that we have actual results
+    if (typeof autonFilterMode !== 'undefined' && autonFilterMode !== 'all') renderTeams();
   } catch (ex) {
     if (err) { err.textContent = 'Error: ' + ex.message; err.style.display = 'block'; }
   }
@@ -136,6 +140,8 @@ function computeCalibration() {
 
   // Recompute schedule cache (if available) since calibration and per-match scalars may affect corrected values
   if (typeof recomputeScheduleCache === 'function') recomputeScheduleCache();
+  // Re-enrich match history with auton win/loss results now that TBA data is available
+  if (typeof recomputeAutonResults === 'function') recomputeAutonResults();
 }
 
 function computePerMatchScalars() {
@@ -208,13 +214,19 @@ function renderRankingsTable() {
   if (!tbaRankData?.rankings) return;
   const rankings = tbaRankData.rankings;
   document.getElementById('rkBadge').textContent = `${rankings.length} teams`;
-  const sortedByScout = [...allTeams].filter(t => t.totalAvg !== null).sort((a, b) => (b.totalAvg || 0) - (a.totalAvg || 0));
+  
+  const sortedByScout = [...allTeams]
+    .map(t => ({ tn: t.teamNumber, avg: getFilteredStats(t).totalAvg }))
+    .filter(x => x.avg !== null)
+    .sort((a, b) => b.avg - a.avg);
+    
   const scoutRankMap = {};
-  sortedByScout.forEach((t, i) => scoutRankMap[t.teamNumber] = i + 1);
+  sortedByScout.forEach((x, i) => scoutRankMap[x.tn] = i + 1);
 
   let rows = rankings.map(r => {
     const tn = parseInt(r.team_key.replace('frc', ''));
     const t = allTeams.find(x => x.teamNumber === tn);
+    const ft = t ? getFilteredStats(t) : null;
     const wlt = r.record || { wins: 0, losses: 0, ties: 0 };
     return {
       rank: r.rank,
@@ -225,8 +237,8 @@ function renderRankingsTable() {
       ties: wlt.ties,
       rp: r.sort_orders?.[0] ?? r.extra_stats?.[0] ?? null,
       matches: r.matches_played,
-      scoutAvg: t?.totalAvg ?? null,
-      corrAvg: t && cal.ready ? tCorr(t) : null,
+      scoutAvg: ft?.totalAvg ?? null,
+      corrAvg: ft && cal.ready ? tCorr(ft) : null,
       scoutRank: scoutRankMap[tn] ?? null,
     };
   });

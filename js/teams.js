@@ -17,15 +17,17 @@ function debugPrintSorted() {
 }
 
 function getTeamVal(t, key) {
-  if (key === 'teamNumber' || key === 'validCount' || key === 'climbRate') return t[key];
+  const ft = getFilteredStats(t);
+  if (key === 'teamNumber' || key === 'validCount' || key === 'climbRate') return ft[key];
   if (key === 'auto' || key === 'teleop' || key === 'endgame' || key === 'total') {
-    if (tViewMode === 'avg') return t[key + 'Avg'];
-    if (tViewMode === 'max') return t[key + 'Max'];
-    if (tViewMode === 'min') return t[key + 'Min'];
-    if (tViewMode === 'corr') return cal.ready ? corrected(t[key + 'Avg'], t.teamNumber) : t[key + 'Avg'];
+    if (tViewMode === 'avg') return ft[key + 'Avg'];
+    if (tViewMode === 'max') return ft[key + 'Max'];
+    if (tViewMode === 'min') return ft[key + 'Min'];
+    if (tViewMode === 'corr') return cal.ready ? corrected(ft[key + 'Avg'], ft.teamNumber) : ft[key + 'Avg'];
   }
-  if (key === 'dprMulti' || key === 'dprPoints') return t[key];
-  return t[key] ?? null;
+  if (key === 'dprMulti' || key === 'dprPoints') return ft[key];
+  if (key === 'schedule') return getScheduleDifficultyNormalized(t.teamNumber);
+  return ft[key] ?? null;
 }
 
 function setSort(k) {
@@ -94,27 +96,43 @@ function getDeltaBadge(t) {
 function renderTeams() {
   const teams = getFilteredTeams();
   document.getElementById('tBadge').textContent = allTeams.length;
+
+  if (!teams.length && autonFilterMode !== 'all') {
+    document.getElementById('tBody').innerHTML = `
+      <tr><td colspan="12" style="text-align:center;padding:32px;color:var(--mut)">
+        <div style="font-size:14px;font-weight:600;color:var(--dim);margin-bottom:6px">No matches found for "${autonFilterMode === 'won' ? 'Won Auton' : 'Lost Auton'}" filter</div>
+        <div style="font-size:11px">${!tbaData ? 'TBA is not connected — this filter requires TBA match data.' : 'No score breakdown data available. The event may not have started, or TBA may not have breakdowns yet.'}</div>
+      </td></tr>`;
+    return;
+  }
+
   document.getElementById('tBody').innerHTML = teams.map(t => {
+    const ft = getFilteredStats(t);
     const vC = tViewMode === 'corr';
     const au = getTeamVal(t, 'auto');
     const te = getTeamVal(t, 'teleop');
     const en = getTeamVal(t, 'endgame');
     const tot = getTeamVal(t, 'total');
+    // Show auton result breakdown badge if filter is active
+    const autonBadge = autonFilterMode !== 'all' && ft.validCount > 0
+      ? `<span style="font-size:9px;background:${autonFilterMode==='won'?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)'};color:${autonFilterMode==='won'?'var(--grn)':'var(--red)'};border:1px solid ${autonFilterMode==='won'?'rgba(16,185,129,.3)':'rgba(239,68,68,.3)'};padding:1px 5px;border-radius:3px;margin-left:4px">${ft.validCount}/${t.history.length}</span>`
+      : '';
     return `
       <tr class="cl" onclick="toggleDet(${t.teamNumber})">
         <td class="tnum">${t.teamNumber}</td>
-        <td style="font-weight:500">${t.teamName} ${renderTeamScheduleStrengthBadge(t.teamNumber)}</td>
-        <td><span class="badge">${t.validCount}</span></td>
+        <td style="font-weight:500">${t.teamName}</td>
+        <td><span class="badge">${ft.validCount}</span>${autonBadge}</td>
         <td class="sv ${sc(au, vC ? 12 : 10, 4)}">${fmt(au)}</td>
         <td class="sv ${sc(te, vC ? 48 : 40, 15)}">${fmt(te)}</td>
         <td class="sv ${sc(en, vC ? 12 : 10, 4)}">${fmt(en)}</td>
         <td class="sv ${sc(tot, vC ? 70 : 60, 25)}" style="font-size:14px;font-weight:700">${fmt(tot)}${getDeltaBadge(t)}</td>
-        <td>${t.climbRate !== null ? `<div class="cbar"><div class="cbar-bg"><div class="cbar-fill" style="width:${Math.round(t.climbRate * 100)}%"></div></div><span style="font-size:10px;color:var(--dim)">${Math.round(t.climbRate * 100)}%</span></div>` : '—'}</td>
+        <td>${renderTeamScheduleStrengthBadge(t.teamNumber)}</td>
+        <td>${ft.climbRate !== null ? `<div class="cbar"><div class="cbar-bg"><div class="cbar-fill" style="width:${Math.round(ft.climbRate * 100)}%"></div></div><span style="font-size:10px;color:var(--dim)">${Math.round(ft.climbRate * 100)}%</span></div>` : '—'}</td>
         <td class="sv md">${(dprSortMetric === 'dprPoints' && t.dprPoints !== null && t.dprPoints > 0) ? ('-' + Math.round(t.dprPoints) + 'pts') : (t.dprMulti !== null && t.dprMulti < 1 ? t.dprMulti.toFixed(2) + '×' : '—')}</td>
         <td>${rt(t.topRole) || '—'}</td>
         <td>${rp(t.drivingProf)}</td>
       </tr>
-      <tr class="drow"><td colspan="11"><div class="dpanel" id="dp-${t.teamNumber}">${buildDetHTML(t)}</div></td></tr>
+      <tr class="drow"><td colspan="12"><div class="dpanel" id="dp-${t.teamNumber}">${buildDetHTML(t)}</div></td></tr>
     `;
   }).join('');
 }
@@ -128,11 +146,12 @@ function toggleDet(tn) {
 }
 
 function buildDetHTML(t) {
+  const ft = getFilteredStats(t);
   const re = Object.entries(t.roleCounts).sort((a, b) => b[1] - a[1]);
   const mxR = re[0]?.[1] || 1;
   const corr = cal.ready ? tCorr(t) : null;
   const ts = cal.teamScalars?.[t.teamNumber];
-  const mRows = t.history.map(m => `<tr><td>M${m.match}</td><td>${fmt(m.auto, 0)}</td><td>${fmt(m.teleop, 0)}</td><td>${fmt(m.endgame, 0)}</td><td style="color:var(--acc);font-weight:700">${fmt(m.total, 0)}</td><td>${m.climb && !isNA(m.climb) ? (m.climb.toLowerCase().includes('success') ? 'S' : m.climb.toLowerCase().includes('fail') ? 'F' : m.climb) : '—'}</td></tr>`).join('');
+  const mRows = ft.history.map(m => `<tr><td>M${m.match}</td><td>${fmt(m.auto, 0)}</td><td>${fmt(m.teleop, 0)}</td><td>${fmt(m.endgame, 0)}</td><td style="color:var(--acc);font-weight:700">${fmt(m.total, 0)}</td><td>${m.climb && !isNA(m.climb) ? (m.climb.toLowerCase().includes('success') ? 'S' : m.climb.toLowerCase().includes('fail') ? 'F' : m.climb) : '—'}</td></tr>`).join('');
 
   const _schedScore = getScheduleDifficultyNormalized(t.teamNumber);
   const scheduleStrengthHtml = _schedScore !== null ? `<div class="scard" style="--cc:${getScheduleStrengthColor(_schedScore)}"><div class="sclbl">Schedule</div><div class="scval">${getScheduleStrengthLabel(_schedScore) || '—'}</div><div class="scsub">Average opponent strength</div></div>` : '';
@@ -142,12 +161,12 @@ function buildDetHTML(t) {
   const perMatchScalarHtml = cal.ready ? `<div class="sec" style="overflow:auto;max-height:190px"><div class="sttl">Per-match Scalars</div><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="text-align:left;color:var(--mut);padding:4px 6px;border-bottom:1px solid var(--bdr)">Match</th><th style="text-align:right;color:var(--mut);padding:4px 6px;border-bottom:1px solid var(--bdr)">Scalar</th><th style="text-align:right;color:var(--mut);padding:4px 6px;border-bottom:1px solid var(--bdr)">Corrected</th></tr></thead><tbody>${perMatchRows || `<tr><td colspan="3" style="padding:6px;color:var(--mut)">No per-match scalar data</td></tr>`}</tbody></table></div>` : '';
 
   return `<div class="dcards">
-    <div class="scard" style="--cc:#00d4aa"><div class="sclbl">Total Avg</div><div class="scval">${fmt(t.totalAvg)}</div><div class="scsub">Min ${fmt(t.totalMin, 0)} · Max ${fmt(t.totalMax, 0)} · σ ${fmt(t.totalStd, 1)}${corr !== null ? `<br>Corr <span class="corrval">${fmt(corr)}</span><span class="corrtag">×${ts?.scalar.toFixed(2) || '?'} ${ts?.fallback ? '(global)' : '(team)'}</span>` : ''}</div></div>
+    <div class="scard" style="--cc:#00d4aa"><div class="sclbl">Total Avg</div><div class="scval">${fmt(ft.totalAvg)}</div><div class="scsub">Min ${fmt(ft.totalMin, 0)} · Max ${fmt(ft.totalMax, 0)} · σ ${fmt(ft.totalStd, 1)}${corr !== null ? `<br>Corr <span class="corrval">${fmt(corr)}</span><span class="corrtag">×${ts?.scalar.toFixed(2) || '?'} ${ts?.fallback ? '(global)' : '(team)'}</span>` : ''}</div></div>
     ${teamScalarHtml}
-    <div class="scard" style="--cc:#6366f1"><div class="sclbl">Auto Avg</div><div class="scval">${fmt(t.autoAvg)}</div><div class="scsub">Min ${fmt(t.autoMin, 0)} · Max ${fmt(t.autoMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.autoAvg, t.teamNumber))}</span>` : ''}</div></div>
-    <div class="scard" style="--cc:#0ea5e9"><div class="sclbl">Teleop Avg</div><div class="scval">${fmt(t.teleopAvg)}</div><div class="scsub">Min ${fmt(t.teleopMin, 0)} · Max ${fmt(t.teleopMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.teleopAvg, t.teamNumber))}</span>` : ''}</div></div>
-    <div class="scard" style="--cc:#f59e0b"><div class="sclbl">Endgame Avg</div><div class="scval">${fmt(t.endgameAvg)}</div><div class="scsub">Min ${fmt(t.endgameMin, 0)} · Max ${fmt(t.endgameMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(t.endgameAvg, t.teamNumber))}</span>` : ''}</div></div>
-    <div class="scard" style="--cc:#10b981"><div class="sclbl">Climb</div><div class="scval">${t.climbRate !== null ? Math.round(t.climbRate * 100) + '%' : '—'}</div><div class="scsub">${t.climbSuccess}/${t.climbAttempts} attempts</div></div>
+    <div class="scard" style="--cc:#6366f1"><div class="sclbl">Auto Avg</div><div class="scval">${fmt(ft.autoAvg)}</div><div class="scsub">Min ${fmt(ft.autoMin, 0)} · Max ${fmt(ft.autoMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(ft.autoAvg, t.teamNumber))}</span>` : ''}</div></div>
+    <div class="scard" style="--cc:#0ea5e9"><div class="sclbl">Teleop Avg</div><div class="scval">${fmt(ft.teleopAvg)}</div><div class="scsub">Min ${fmt(ft.teleopMin, 0)} · Max ${fmt(ft.teleopMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(ft.teleopAvg, t.teamNumber))}</span>` : ''}</div></div>
+    <div class="scard" style="--cc:#f59e0b"><div class="sclbl">Endgame Avg</div><div class="scval">${fmt(ft.endgameAvg)}</div><div class="scsub">Min ${fmt(ft.endgameMin, 0)} · Max ${fmt(ft.endgameMax, 0)}${cal.ready ? ` · Corr <span class="corrval">${fmt(corrected(ft.endgameAvg, t.teamNumber))}</span>` : ''}</div></div>
+    <div class="scard" style="--cc:#10b981"><div class="sclbl">Climb</div><div class="scval">${ft.climbRate !== null ? Math.round(ft.climbRate * 100) + '%' : '—'}</div><div class="scsub">${ft.climbSuccess || 0}/${ft.climbAttempts || 0} attempts</div></div>
     <div class="scard" style="--cc:#ef4444"><div class="sclbl">DPR (Defense)</div><div class="scval">${t.dprMulti !== null && t.dprMulti < 1 ? t.dprMulti.toFixed(2) + '×' : '—'}</div><div class="scsub">${t.dprPoints !== null && t.dprPoints > 0 ? '-' + Math.abs(Math.round(t.dprPoints)) + ' pts limit (avg)' : ''}</div></div>
     ${scheduleStrengthHtml}
   </div>

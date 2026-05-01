@@ -1728,3 +1728,52 @@ nav {
 .ttbl tbody tr:hover {
   background: var(--surf);
 }
+/* PERSISTENCE & UTILITIES */
+.sim-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sim-table th {
+  padding: 8px 6px;
+  color: var(--mut);
+  font-size: 11px;
+  text-align: left;
+  border-bottom: 1px solid var(--bdr);
+}
+
+.sim-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--bdr2);
+  font-size: 13px;
+}
+
+.preset-card {
+  background: var(--surf);
+  border: 1px solid var(--bdr);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.preset-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.preset-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.preset-label.red { color: #f87171; }
+.preset-label.blue { color: #60a5fa; }

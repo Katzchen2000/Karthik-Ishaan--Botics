@@ -1,7 +1,9 @@
 // Chart utilities and chart page rendering
 function getVal(t, key, useCorr) {
-  if (key === 'climbRate') return t.climbRate !== null ? t.climbRate * 100 : null;
-  const raw = t[key] ?? null;
+  const ft = getFilteredStats(t);
+  if (key === 'climbRate') return ft.climbRate !== null ? ft.climbRate * 100 : null;
+  // If key is like 'autoAvg', use it from ft
+  const raw = ft[key] !== undefined ? ft[key] : (t[key] ?? null);
   return (useCorr && cal.ready && raw !== null) ? corrected(raw, t.teamNumber) : raw;
 }
 
@@ -99,9 +101,9 @@ function mkBar(teams, metric, sortMode, canvasId, detIds, useCorr, isRank = fals
   let datasets;
   if (isScore && !isRank) {
     const sc = useCorr && cal.ready;
-    const autoV = sorted.map(t => +(sc ? corrected(t.autoAvg, t.teamNumber) : t.autoAvg || 0).toFixed(2));
-    const teleV = sorted.map(t => +(sc ? corrected(t.teleopAvg, t.teamNumber) : t.teleopAvg || 0).toFixed(2));
-    const endV = sorted.map(t => +(sc ? corrected(t.endgameAvg, t.teamNumber) : t.endgameAvg || 0).toFixed(2));
+    const autoV = sorted.map(t => { const ft = getFilteredStats(t); return +(sc ? corrected(ft.autoAvg, t.teamNumber) : ft.autoAvg || 0).toFixed(2); });
+    const teleV = sorted.map(t => { const ft = getFilteredStats(t); return +(sc ? corrected(ft.teleopAvg, t.teamNumber) : ft.teleopAvg || 0).toFixed(2); });
+    const endV = sorted.map(t => { const ft = getFilteredStats(t); return +(sc ? corrected(ft.endgameAvg, t.teamNumber) : ft.endgameAvg || 0).toFixed(2); });
     datasets = [
       { label: 'Auto', data: autoV, backgroundColor: 'rgba(99,102,241,.85)', stack: 's', borderWidth: 0, borderRadius: 0 },
       { label: 'Teleop', data: teleV, backgroundColor: 'rgba(14,165,233,.85)', stack: 's', borderWidth: 0, borderRadius: 0 },

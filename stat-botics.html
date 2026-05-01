@@ -77,6 +77,13 @@
       <button class="sbtn" id="tv-max" onclick="setTView('max')">Max</button>
       <button class="sbtn" id="tv-min" onclick="setTView('min')">Min</button>
     </div>
+    <div class="sbar" style="margin-bottom:8px">
+      <span style="font-weight:700; color:var(--acc); margin-right:8px">Auton:</span>
+      <button class="sbtn auton-filter-btn on" onclick="setAutonFilter('all')">All</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('won')">Won Auton</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('lost')">Lost Auton</button>
+    </div>
+    <div id="autonFilterBanner" style="display:none;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yel);font-size:11px;padding:6px 12px;border-radius:6px;margin-bottom:8px;align-items:center;gap:6px"></div>
     <div class="sbar">
       <select id="teamCorrModeSel" class="tsel" style="width:auto; margin:0; padding:4px 8px; font-size:11px" onchange="teamCorrModeChanged()">
         <option value="none">TBA: Off</option>
@@ -93,6 +100,7 @@
       <button class="sbtn" id="sk-climbRate" onclick="setSort('climbRate')">Climb %</button>
       <button class="sbtn" id="sk-teamNumber" onclick="setSort('teamNumber')">Team #</button>
       <button class="sbtn" id="sk-validCount" onclick="setSort('validCount')">Matches</button>
+      <button class="sbtn" id="sk-schedule" onclick="setSort('schedule')">Schedule</button>
       <button class="sbtn" id="sk-dprMulti" onclick="setDprSort()">DPR</button>
     </div>
     <table class="dtbl">
@@ -105,6 +113,7 @@
           <th>Teleop</th>
           <th>Endgame</th>
           <th>Total</th>
+          <th>Schedule</th>
           <th>Climb</th>
           <th>DPR</th>
           <th>Role</th>
@@ -129,6 +138,12 @@
     <div class="phdr">
       <h2>Alliance Predictor</h2>
     </div>
+    <div class="sbar" style="margin-bottom:8px">
+      <span style="font-weight:700; color:var(--acc); margin-right:8px">Auton:</span>
+      <button class="sbtn auton-filter-btn on" onclick="setAutonFilter('all')">All</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('won')">Won Auton</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('lost')">Lost Auton</button>
+    </div>
     <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center; flex-wrap:wrap">
       <select id="predModeSel" class="tsel" style="width:auto; margin:0; padding:4px 8px; font-size:11px" onchange="predModeChanged()">
         <option value="avg">Mode: Average scores</option>
@@ -152,19 +167,16 @@
       </select>
     </div>
     <!-- PRESET ROW -->
-    <div
-      style="background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px">
-        <span style="font-size:9px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.4px">Red
-          Alliance</span>
+    <div class="preset-card">
+      <div class="preset-col">
+        <span class="preset-label red">Red Alliance</span>
         <div style="display:flex;gap:6px">
           <select class="axsel" id="predRedPreset" style="flex:1;font-size:11px"></select>
           <button class="bsm" onclick="applyPredPreset('red')">Load</button>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px">
-        <span style="font-size:9px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.4px">Blue
-          Alliance</span>
+      <div class="preset-col">
+        <span class="preset-label blue">Blue Alliance</span>
         <div style="display:flex;gap:6px">
           <select class="axsel" id="predBluePreset" style="flex:1;font-size:11px"></select>
           <button class="bsm" onclick="applyPredPreset('blue')">Load</button>
@@ -230,8 +242,14 @@
     <div class="phdr">
       <h2>Simulation</h2><span class="badge" id="simBadge">0 teams</span>
     </div>
+    <div class="sbar" style="margin-bottom:8px">
+      <span style="font-weight:700; color:var(--acc); margin-right:8px">Auton:</span>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('all')">All</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('won')">Won Auton</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('lost')">Lost Auton</button>
+    </div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:center">
-      <div style="flex:1;min-width:220px;font-size:11px;color:var(--mut)">Predicted ending qualification rank using each team’s current point average and match schedule strength.</div>
+      <div style="flex:1;min-width:220px;font-size:11px;color:var(--mut)">Predicted ending qualification rank using each team's current point average and match schedule strength.</div>
       <button class="bsm" onclick="renderSimulation()">Refresh</button>
     </div>
     <div class="bwrap" style="height:320px;margin-bottom:16px"><canvas id="simRankCanvas"></canvas></div>
@@ -249,17 +267,17 @@
       </div>
     </div>
     <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;min-width:820px">
+      <table class="sim-table" style="min-width:820px">
         <thead>
-          <tr style="text-align:left;border-bottom:1px solid rgba(148,163,184,.2)">
-            <th style="padding:8px 6px;color:var(--mut);font-size:11px">#</th>
-            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Team</th>
-            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Name</th>
-            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Avg Score</th>
-            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Schedule</th>
-            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Projected Wins</th>
-            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Pred Rank</th>
-            <th style="padding:8px 6px;color:var(--mut);font-size:11px">Match details</th>
+          <tr>
+            <th style="cursor:pointer" onclick="setSimSort('index')"># ⇅</th>
+            <th style="cursor:pointer" onclick="setSimSort('team')">Team ⇅</th>
+            <th>Name</th>
+            <th style="cursor:pointer" onclick="setSimSort('strength')">Avg Score ⇅</th>
+            <th style="cursor:pointer" onclick="setSimSort('schedule')">Schedule ⇅</th>
+            <th style="cursor:pointer" onclick="setSimSort('wins')">Projected Wins ⇅</th>
+            <th style="cursor:pointer" onclick="setSimSort('rank')">Pred Rank ⇅</th>
+            <th>Match details</th>
           </tr>
         </thead>
         <tbody id="simBody"></tbody>
@@ -445,6 +463,12 @@
     <div class="phdr">
       <h2>Charts</h2><span class="badge" id="chBadge">0 teams</span>
     </div>
+    <div class="sbar" style="margin-bottom:8px">
+      <span style="font-weight:700; color:var(--acc); margin-right:8px">Auton:</span>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('all')">All</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('won')">Won Auton</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('lost')">Lost Auton</button>
+    </div>
     <div class="sbar">
       <button class="sbtn on" id="ct-bubble" onclick="setChartTab('bubble')">Bubble</button>
       <button class="sbtn" id="ct-opr" onclick="setChartTab('opr')">Scout OPR</button>
@@ -574,6 +598,12 @@
       <span class="badge" id="rkBadge">0 teams</span>
       <button class="bsm" style="margin-left:auto" onclick="fetchRankings()">Refresh</button>
     </div>
+    <div class="sbar" style="margin-bottom:8px">
+      <span style="font-weight:700; color:var(--acc); margin-right:8px">Auton:</span>
+      <button class="sbtn auton-filter-btn on" onclick="setAutonFilter('all')">All</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('won')">Won Auton</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('lost')">Lost Auton</button>
+    </div>
     <div id="rkNoTBA" style="text-align:center;padding:48px;color:var(--mut)">
       <div style="height:32px"></div>
       <div style="font-size:14px;font-weight:600;color:var(--dim);margin-bottom:6px">TBA not connected</div>
@@ -606,6 +636,12 @@
   <div id="pgTimeline" class="page">
     <div class="phdr">
       <h2>Team Timeline</h2>
+    </div>
+    <div class="sbar" style="margin-bottom:8px">
+      <span style="font-weight:700; color:var(--acc); margin-right:8px">Auton:</span>
+      <button class="sbtn auton-filter-btn on" onclick="setAutonFilter('all')">All</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('won')">Won Auton</button>
+      <button class="sbtn auton-filter-btn" onclick="setAutonFilter('lost')">Lost Auton</button>
     </div>
     <div style="margin-bottom:12px">
       <label style="font-size:11px;color:var(--dim);display:block;margin-bottom:4px;font-weight:700">Select one or more teams to compare match-by-match performance</label>

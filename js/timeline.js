@@ -47,7 +47,13 @@ function buildTeamTimeline(team) {
   const matches = [];
   if (!team.history) return { teamNumber: team.teamNumber, teamName: team.teamName, matches: [], stats: { avgRaw: 0, avgCorr: 0, best: 0, worst: 0, trend: 'stable', count: 0 } };
 
-  team.history.forEach(hist => {
+  const hList = team.history.filter(h => {
+    if (autonFilterMode === 'won') return h.autonResult === 'won';
+    if (autonFilterMode === 'lost') return h.autonResult === 'lost';
+    return true;
+  });
+
+  hList.forEach(hist => {
     const scalar = cal.ready
       ? (tbaCorrectionMode === 'match'
           ? (perMatchScalars[team.teamNumber]?.[hist.match] ?? (cal.teamScalars[team.teamNumber]?.scalar || cal.scalar))

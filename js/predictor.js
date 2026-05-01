@@ -172,11 +172,12 @@ function getMatchCorrectedTotals(t) {
   return t.history.map(h => corrected(h.total, t.teamNumber, h.match));
 }
 function teamAvgVal(t) {
-  if (!cal.ready || t.totalAvg === null) return t.totalAvg || 0;
-  if (tbaCorrectionMode === 'none') return t.totalAvg || 0;
-  if (tbaCorrectionMode === 'team') return tCorr(t) || 0;
-  const values = getMatchCorrectedTotals(t).filter(v => v !== null && !isNaN(v));
-  return values.length ? values.reduce((s, v) => s + v, 0) / values.length : (t.totalAvg || 0);
+  const ft = getFilteredStats(t);
+  if (!cal.ready || ft.totalAvg === null) return ft.totalAvg || 0;
+  if (tbaCorrectionMode === 'none') return ft.totalAvg || 0;
+  if (tbaCorrectionMode === 'team') return tCorr(ft) || 0;
+  const values = ft.history.map(h => corrected(h.total, t.teamNumber, h.match)).filter(v => v !== null && !isNaN(v));
+  return values.length ? values.reduce((s, v) => s + v, 0) / values.length : (ft.totalAvg || 0);
 }
 function teamMaxVal(t) {
   if (!cal.ready || t.totalMax === null) return t.totalMax || 0;

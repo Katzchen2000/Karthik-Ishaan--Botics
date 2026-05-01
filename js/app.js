@@ -27,9 +27,50 @@ let chartInsts = {};
 let tbaRankData = null;
 let rkSortKey = 'rank';
 let rkSortDir = 1;
+let simSortKey = 'rank';
+let simSortDir = 1;
 let tViewMode = 'avg';
+let autonFilterMode = 'all';
 let dprSortMetric = 'dprMulti';
 let predDef = {};
+
+function setAutonFilter(mode) {
+  autonFilterMode = mode;
+  document.querySelectorAll('.auton-filter-btn').forEach(b => {
+    b.classList.toggle('on', b.getAttribute('onclick').includes(`'${mode}'`));
+  });
+
+  // Show/hide TBA warning banner
+  const banner = document.getElementById('autonFilterBanner');
+  if (banner) {
+    if (mode !== 'all' && (!tbaData || !tbaData.matches)) {
+      banner.style.display = 'flex';
+      banner.textContent = '⚠ Auton filtering requires TBA to be connected — connect via "Connect TBA" in the top nav.';
+    } else if (mode !== 'all') {
+      // Count how many matches have known auton results
+      const total = allTeams.reduce((s, t) => s + t.history.length, 0);
+      const known = allTeams.reduce((s, t) => s + t.history.filter(h => h.autonResult !== 'unknown').length, 0);
+      if (known === 0) {
+        banner.style.display = 'flex';
+        banner.textContent = '⚠ No auton result data found. TBA may not have score breakdowns for this event yet.';
+      } else {
+        banner.style.display = 'none';
+      }
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  const activePage = Object.keys(PGMAP).find(k => document.getElementById(PGMAP[k])?.classList.contains('on'));
+  if (activePage) {
+    if (activePage === 'teams') renderTeams();
+    else if (activePage === 'charts') { renderBubble(); renderOPR(); renderRank(); renderDeviation(); }
+    else if (activePage === 'predictor') renderPredictor();
+    else if (activePage === 'simulation') renderSimulation();
+    else if (activePage === 'rankings') renderRankings();
+    else if (activePage === 'timeline') renderTimeline();
+  }
+}
 
 const RCOL = { Cycler: 'rgba(129,140,248,.8)', Scorer: 'rgba(56,189,248,.8)', Feeder: 'rgba(251,191,36,.8)', Defender: 'rgba(248,113,113,.8)', Lobber: 'rgba(52,211,153,.8)', Other: 'rgba(0,212,170,.75)' };
 const DCOL = { VeryGood: 'rgba(16,185,129,.8)', Good: 'rgba(14,165,233,.8)', Decent: 'rgba(245,158,11,.8)', Bad: 'rgba(239,68,68,.8)', null: 'rgba(100,116,139,.7)' };
